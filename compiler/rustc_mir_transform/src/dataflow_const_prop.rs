@@ -47,6 +47,11 @@ impl<'tcx> crate::MirPass<'tcx> for DataflowConstProp {
             return;
         }
 
+        // Skip trivial functions where dataflow analysis overhead exceeds benefit.
+        if body.basic_blocks.len() <= 2 && body.local_decls.len() <= 3 {
+            return;
+        }
+
         // We want to have a somewhat linear runtime w.r.t. the number of statements/terminators.
         // Let's call this number `n`. Dataflow analysis has `O(h*n)` transfer function
         // applications, where `h` is the height of the lattice. Because the height of our lattice

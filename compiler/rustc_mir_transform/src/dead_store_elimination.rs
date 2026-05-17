@@ -31,6 +31,11 @@ use crate::util::most_packed_projection;
 /// body. It can be generated via the [`borrowed_locals`] function.
 /// Returns true if any instruction is eliminated.
 fn eliminate<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) -> bool {
+    // Skip liveness analysis for trivial functions.
+    if body.basic_blocks.len() <= 1 && body.local_decls.len() <= 3 {
+        return false;
+    }
+
     let borrowed_locals = borrowed_locals(body);
 
     // If the user requests complete debuginfo, mark the locals that appear in it as live, so

@@ -127,6 +127,13 @@ impl<'tcx> crate::MirPass<'tcx> for GVN {
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         debug!(def_id = ?body.source.def_id());
 
+        // Skip GVN for very simple functions where the overhead of SSA analysis,
+        // dominator computation, and value numbering exceeds any benefit.
+        let dominated_stmts: usize = body.basic_blocks.iter().map(|bb| bb.statements.len()).sum();
+        if body.basic_blocks.len() <= 1 && dominated_stmts <= 2 {
+            return;
+        }
+
         let typing_env = body.typing_env(tcx);
         let ssa = SsaLocals::new(tcx, body, typing_env);
         // Clone dominators because we need them while mutating the body.

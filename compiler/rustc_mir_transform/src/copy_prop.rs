@@ -28,6 +28,11 @@ impl<'tcx> crate::MirPass<'tcx> for CopyProp {
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         debug!(def_id = ?body.source.def_id());
 
+        // Skip SSA analysis for trivial functions with very few locals.
+        if body.local_decls.len() <= 2 {
+            return;
+        }
+
         let typing_env = body.typing_env(tcx);
         let ssa = SsaLocals::new(tcx, body, typing_env);
         debug!(borrowed_locals = ?ssa.borrowed_locals());

@@ -1,0 +1,179 @@
+name: Rustc Perf Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: 'Git ref for baseline compiler (commit SHA, branch, or tag)'
+        required: true
+        default: '60d4c03b1c63ee2d4046af32b9182b9600d28858'
+      include:
+        description: 'Benchmark crates to include (regex pattern, e.g. serde|syn|cargo)'
+        required: false
+        default: 'serde|syn|regex-automata|ripgrep|cargo'
+      profiles:
+        description: 'Profiles to benchmark'
+        required: false
+        default: 'Opt'
+      scenarios:
+        description: 'Scenarios to benchmark'
+        required: false
+        default: 'Full,IncrUnchanged,IncrPatched'
+  pull_request:
+    paths:
+      - 'compiler/**'
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  benchmark:
+    name: Perf Benchmark (baseline vs modified)
+    # Change to a larger runner label if you have one (e.g. ubuntu-latest-16-cores).
+    # Larger runners give more stable results and faster builds.
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build python3 curl git valgrind
+
+      - name: Install Rust toolchain (for rustc-perf build)
+        uses: dtolnay/rust-toolchain@nightly
+
+      # -- Build baseline compiler --
+      - name: Checkout baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.baseline_ref || '60d4c03b1c63ee2d4046af32b9182b9600d28858' }}
+          path: baseline
+
+      - name: Configure baseline
+        run: |
+          cd baseline
+          cat > bootstrap.toml <<'EOF'
+          [build]
+          build-stage = 1
+          [rust]
+          optimize = true
+          debug = false
+          incremental = false
+          EOF
+
+      - name: Build baseline stage 1 compiler
+        run: |
+          cd baseline
+          python3 x.py build --stage 1
+
+      # -- Build modified compiler (current branch/PR) --
+      - name: Checkout modified
+        uses: actions/checkout@v4
+        with:
+          path: modified
+
+      - name: Configure modified
+        run: |
+          cd modified
+          cat > bootstrap.toml <<'EOF'
+          [build]
+          build-stage = 1
+          [rust]
+          optimize = true
+          debug = false
+          incremental = false
+          EOF
+
+      - name: Build modified stage 1 compiler
+        run: |
+          cd modified
+          python3 x.py build --stage 1
+
+      # -- Run benchmarks --
+      - name: Clone and build rustc-perf
+        run: |
+          git clone --depth 1 https://github.com/rust-lang/rustc-perf.git /tmp/rustc-perf
+          cd /tmp/rustc-perf
+          cargo build --release -p collector
+
+      - name: Run baseline benchmarks
+        run: |
+          INCLUDE="${{ github.event.inputs.include || 'serde|syn|regex-automata|ripgrep|cargo' }}"
+          PROFILES="${{ github.event.inputs.profiles || 'Opt' }}"
+          SCENARIOS="${{ github.event.inputs.scenarios || 'Full,IncrUnchanged,IncrPatched' }}"
+
+          /tmp/rustc-perf/target/release/collector bench_local \
+            "$GITHUB_WORKSPACE/baseline/build/x86_64-unknown-linux-gnu/stage1/bin/rustc" \
+            --id baseline \
+            --db /tmp/results.db \
+            --cargo "$(rustup which cargo)" \
+            --profiles "$PROFILES" \
+            --scenarios "$SCENARIOS" \
+            --include "$INCLUDE" \
+            --backends Cachegrind
+
+      - name: Run modified benchmarks
+        run: |
+          INCLUDE="${{ github.event.inputs.include || 'serde|syn|regex-automata|ripgrep|cargo' }}"
+          PROFILES="${{ github.event.inputs.profiles || 'Opt' }}"
+          SCENARIOS="${{ github.event.inputs.scenarios || 'Full,IncrUnchanged,IncrPatched' }}"
+
+          /tmp/rustc-perf/target/release/collector bench_local \
+            "$GITHUB_WORKSPACE/modified/build/x86_64-unknown-linux-gnu/stage1/bin/rustc" \
+            --id modified \
+            --db /tmp/results.db \
+            --cargo "$(rustup which cargo)" \
+            --profiles "$PROFILES" \
+            --scenarios "$SCENARIOS" \
+            --include "$INCLUDE" \
+            --backends Cachegrind
+
+      # -- Compare and report --
+      - name: Generate comparison
+        run: |
+          /tmp/rustc-perf/target/release/collector diff \
+            /tmp/results.db baseline modified \
+            2>&1 | tee /tmp/perf-comparison.txt || true
+
+          echo "## Rustc Perf Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/perf-comparison.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: |
+            /tmp/results.db
+            /tmp/perf-comparison.txt
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comparison = 'Failed to read comparison results.';
+            try { comparison = fs.readFileSync('/tmp/perf-comparison.txt', 'utf8'); } catch {}
+            const body = [
+              '## Rustc Perf Benchmark Results',
+              '',
+              '```',
+              comparison,
+              '```',
+              '',
+              `*Benchmarked with cachegrind on \`${process.env.RUNNER_NAME}\`*`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });

@@ -161,6 +161,11 @@ impl<'tcx> crate::MirPass<'tcx> for DestinationPropagation {
         let def_id = body.source.def_id();
         trace!(?def_id);
 
+        // Skip for very simple functions where liveness analysis overhead exceeds benefit.
+        if body.local_decls.len() <= 2 {
+            return;
+        }
+
         let borrowed = rustc_mir_dataflow::impls::borrowed_locals(body);
 
         let candidates = Candidates::find(body, &borrowed);

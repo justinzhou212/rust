@@ -79,6 +79,12 @@ impl<'tcx> crate::MirPass<'tcx> for ReferencePropagation {
     #[instrument(level = "trace", skip(self, tcx, body))]
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         debug!(def_id = ?body.source.def_id());
+
+        // Skip for very simple functions where SSA + dataflow overhead exceeds benefit.
+        if body.basic_blocks.len() <= 1 && body.local_decls.len() <= 3 {
+            return;
+        }
+
         move_to_copy_pointers(tcx, body);
         while propagate_ssa(tcx, body) {}
     }
