@@ -19,6 +19,14 @@ on:
         description: 'Scenarios to benchmark'
         required: false
         default: 'Full,IncrUnchanged,IncrPatched'
+      build_runner:
+        description: 'Runner label for build jobs (e.g. ubuntu-latest, self-hosted)'
+        required: false
+        default: 'ubuntu-latest'
+      bench_runner:
+        description: 'Runner label for benchmark job (use self-hosted for stable results)'
+        required: false
+        default: 'ubuntu-latest'
   pull_request:
     paths:
       - 'compiler/**'
@@ -31,31 +39,24 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  benchmark:
-    name: Perf Benchmark (baseline vs modified)
-    # Change to a larger runner label if you have one (e.g. ubuntu-latest-16-cores).
-    # Larger runners give more stable results and faster builds.
-    runs-on: ubuntu-latest
-    timeout-minutes: 300
+  # ── Build baseline compiler (parallel with build-modified) ───
+  build-baseline:
+    name: Build Baseline Compiler
+    runs-on: ${{ github.event.inputs.build_runner || 'ubuntu-latest' }}
+    timeout-minutes: 180
     steps:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build python3 curl git valgrind
+          sudo apt-get install -y build-essential cmake ninja-build python3 curl git
 
-      - name: Install Rust toolchain (for rustc-perf build)
-        uses: dtolnay/rust-toolchain@nightly
-
-      # -- Build baseline compiler --
       - name: Checkout baseline
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.baseline_ref || '60d4c03b1c63ee2d4046af32b9182b9600d28858' }}
-          path: baseline
 
       - name: Configure baseline
         run: |
-          cd baseline
           cat > bootstrap.toml <<'EOF'
           [build]
           build-stage = 1
@@ -65,20 +66,38 @@ jobs:
           incremental = false
           EOF
 
-      - name: Build baseline stage 1 compiler
-        run: |
-          cd baseline
-          python3 x.py build --stage 1
+      - name: Build stage 1 compiler
+        run: python3 x.py build --stage 1
 
-      # -- Build modified compiler (current branch/PR) --
+      - name: Package compiler
+        run: |
+          tar czf /tmp/baseline-compiler.tar.gz \
+            build/x86_64-unknown-linux-gnu/stage1/
+
+      - name: Upload compiler artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-compiler
+          path: /tmp/baseline-compiler.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  # ── Build modified compiler (parallel with build-baseline) ───
+  build-modified:
+    name: Build Modified Compiler
+    runs-on: ${{ github.event.inputs.build_runner || 'ubuntu-latest' }}
+    timeout-minutes: 180
+    steps:
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build python3 curl git
+
       - name: Checkout modified
         uses: actions/checkout@v4
-        with:
-          path: modified
 
       - name: Configure modified
         run: |
-          cd modified
           cat > bootstrap.toml <<'EOF'
           [build]
           build-stage = 1
@@ -88,17 +107,65 @@ jobs:
           incremental = false
           EOF
 
-      - name: Build modified stage 1 compiler
-        run: |
-          cd modified
-          python3 x.py build --stage 1
+      - name: Build stage 1 compiler
+        run: python3 x.py build --stage 1
 
-      # -- Run benchmarks --
+      - name: Package compiler
+        run: |
+          tar czf /tmp/modified-compiler.tar.gz \
+            build/x86_64-unknown-linux-gnu/stage1/
+
+      - name: Upload compiler artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: modified-compiler
+          path: /tmp/modified-compiler.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  # ── Run benchmarks on dedicated runner ───────────────────────
+  benchmark:
+    name: Run Cachegrind Benchmarks
+    needs: [build-baseline, build-modified]
+    # Use a self-hosted runner for stable, reproducible results.
+    # Self-hosted bare-metal eliminates noisy-neighbor effects.
+    # Falls back to ubuntu-latest if no self-hosted runner is configured.
+    runs-on: ${{ github.event.inputs.bench_runner || 'ubuntu-latest' }}
+    timeout-minutes: 240
+    steps:
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind build-essential python3 curl git
+
+      - name: Install Rust nightly (for building rustc-perf)
+        uses: dtolnay/rust-toolchain@nightly
+
       - name: Clone and build rustc-perf
         run: |
           git clone --depth 1 https://github.com/rust-lang/rustc-perf.git /tmp/rustc-perf
           cd /tmp/rustc-perf
           cargo build --release -p collector
+
+      - name: Download baseline compiler
+        uses: actions/download-artifact@v4
+        with:
+          name: baseline-compiler
+          path: /tmp/artifacts/
+
+      - name: Download modified compiler
+        uses: actions/download-artifact@v4
+        with:
+          name: modified-compiler
+          path: /tmp/artifacts/
+
+      - name: Extract compilers
+        run: |
+          mkdir -p /tmp/baseline /tmp/modified
+          cd /tmp/baseline && tar xzf /tmp/artifacts/baseline-compiler.tar.gz
+          cd /tmp/modified && tar xzf /tmp/artifacts/modified-compiler.tar.gz
+          chmod +x /tmp/baseline/build/x86_64-unknown-linux-gnu/stage1/bin/rustc
+          chmod +x /tmp/modified/build/x86_64-unknown-linux-gnu/stage1/bin/rustc
 
       - name: Run baseline benchmarks
         run: |
@@ -107,7 +174,7 @@ jobs:
           SCENARIOS="${{ github.event.inputs.scenarios || 'Full,IncrUnchanged,IncrPatched' }}"
 
           /tmp/rustc-perf/target/release/collector bench_local \
-            "$GITHUB_WORKSPACE/baseline/build/x86_64-unknown-linux-gnu/stage1/bin/rustc" \
+            /tmp/baseline/build/x86_64-unknown-linux-gnu/stage1/bin/rustc \
             --id baseline \
             --db /tmp/results.db \
             --cargo "$(rustup which cargo)" \
@@ -123,7 +190,7 @@ jobs:
           SCENARIOS="${{ github.event.inputs.scenarios || 'Full,IncrUnchanged,IncrPatched' }}"
 
           /tmp/rustc-perf/target/release/collector bench_local \
-            "$GITHUB_WORKSPACE/modified/build/x86_64-unknown-linux-gnu/stage1/bin/rustc" \
+            /tmp/modified/build/x86_64-unknown-linux-gnu/stage1/bin/rustc \
             --id modified \
             --db /tmp/results.db \
             --cargo "$(rustup which cargo)" \
@@ -132,7 +199,7 @@ jobs:
             --include "$INCLUDE" \
             --backends Cachegrind
 
-      # -- Compare and report --
+      # ── Compare and report ─────────────────────────────────────
       - name: Generate comparison
         run: |
           /tmp/rustc-perf/target/release/collector diff \
@@ -140,6 +207,11 @@ jobs:
             2>&1 | tee /tmp/perf-comparison.txt || true
 
           echo "## Rustc Perf Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** \`$(hostname)\` — ${{ runner.os }} ${{ runner.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Baseline:** \`${{ github.event.inputs.baseline_ref || '60d4c03b' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Modified:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat /tmp/perf-comparison.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
@@ -165,11 +237,13 @@ jobs:
             const body = [
               '## Rustc Perf Benchmark Results',
               '',
+              `**Runner:** \`${process.env.RUNNER_NAME}\``,
+              `**Baseline:** \`${{ github.event.inputs.baseline_ref || '60d4c03b' }}\``,
+              `**Modified:** \`${{ github.sha }}\``,
+              '',
               '```',
               comparison,
               '```',
-              '',
-              `*Benchmarked with cachegrind on \`${process.env.RUNNER_NAME}\`*`,
             ].join('\n');
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
