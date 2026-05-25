@@ -1,0 +1,10 @@
+version = "1.0"
+
+[metadata]
+author_name = "Justin Zhou"
+author_email = "sasha@fastmail.com"
+author_organization = ""
+difficulty_explanation = "Requires building a full N64 emulator from scratch in Rust targeting WASM + WebGPU. The three hardest problems are: (1) porting the RDP pixel pipeline to WebGPU compute shaders with bit-exact output matching Angrylion, (2) building a MIPS R4300i dynamic recompiler that outputs WASM (structured control flow from arbitrary MIPS branches), and (3) LLE emulation of the RSP's custom 128-bit SIMD vector unit with per-game microcode. Nobody has built a Rust N64 emulator with an RDP implemented in WebGPU compute shaders. gopher64 (928 stars) uses parallel-rdp via Vulkan FFI (not WASM-portable). N64Wasm is an Emscripten wrap of C++ code. This project solves an open problem."
+verification_explanation = "3,650+ deterministic hardware tests from n64-systemtest (pure pass/fail, zero flakiness). RDP correctness verified via bit-exact framebuffer hash comparison against Angrylion reference renderer — a single wrong pixel fails. RSP vector opcode tests verify numerical results. Integration tests boot 5+ homebrew ROMs. Performance gating ensures native >=30 VI/s and WASM >=15 VI/s. WASM binary size gated at <15 MB."
+category = "systems"
+tags = ["emulator", "n64", "rust", "wasm", "webgpu", "compute-shaders", "jit", "mips", "graphics", "bit-exact"]
