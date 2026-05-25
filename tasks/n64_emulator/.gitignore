@@ -1,0 +1,17 @@
+# Build artifacts
+target/
+*.wasm
+pkg/
+
+# Test results
+test-results/
+test-artifacts/
+
+# Downloaded test ROMs (large, fetched at test time)
+reference/test_roms/
+reference/rdp_golden_hashes/
+reference/angrylion/
+
+# Temp files
+/tmp/
+*.log

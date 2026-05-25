@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N64 Emulator — WebGPU + WASM</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            padding: 20px 0 10px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.4em;
+            color: #c8a2c8;
+            letter-spacing: 2px;
+        }
+
+        header p {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            max-width: 960px;
+            width: 100%;
+        }
+
+        /* --- Canvas --- */
+        #screen-container {
+            background: #000;
+            border: 2px solid #333;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #screen {
+            display: block;
+            width: 640px;
+            height: 480px;
+            image-rendering: pixelated;
+        }
+
+        /* --- Performance overlay --- */
+        #perf-overlay {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 3px;
+            pointer-events: none;
+            font-family: monospace;
+        }
+
+        /* --- Controls --- */
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: #16213e;
+            color: #c8a2c8;
+            border: 1px solid #333;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85em;
+            transition: background 0.15s;
+        }
+
+        button:hover { background: #1a1a3e; border-color: #c8a2c8; }
+        button:active { background: #0f3460; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* --- ROM drop zone --- */
+        #drop-zone {
+            border: 2px dashed #333;
+            border-radius: 6px;
+            padding: 30px 20px;
+            text-align: center;
+            color: #666;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+            width: 100%;
+            max-width: 640px;
+        }
+
+        #drop-zone.dragover {
+            border-color: #c8a2c8;
+            color: #c8a2c8;
+        }
+
+        #drop-zone input { display: none; }
+
+        /* --- Status log --- */
+        #status {
+            background: #0d1117;
+            border: 1px solid #222;
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 0.8em;
+            width: 100%;
+            max-width: 640px;
+            max-height: 120px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        #status .info  { color: #58a6ff; }
+        #status .ok    { color: #3fb950; }
+        #status .err   { color: #f85149; }
+        #status .warn  { color: #d29922; }
+
+        /* --- Test results --- */
+        #test-results {
+            background: #0d1117;
+            border: 1px solid #222;
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 0.8em;
+            width: 100%;
+            max-width: 640px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        /* --- Keyboard map --- */
+        .keyboard-map {
+            font-size: 0.75em;
+            color: #555;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .keyboard-map kbd {
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-family: inherit;
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 12px;
+            font-size: 0.7em;
+            color: #444;
+            text-align: center;
+        }
+
+        footer a { color: #666; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>N64 Emulator</h1>
+        <p>Rust + WASM + WebGPU Compute &mdash; Bit-Exact RDP</p>
+    </header>
+
+    <div class="main">
+        <!-- Screen -->
+        <div id="screen-container">
+            <canvas id="screen" width="640" height="480"></canvas>
+            <div id="perf-overlay">-- VI/s | -- FPS</div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button id="btn-play" disabled>Play</button>
+            <button id="btn-pause" disabled>Pause</button>
+            <button id="btn-reset" disabled>Reset</button>
+            <button id="btn-mute">Mute</button>
+            <button id="btn-fullscreen">Fullscreen</button>
+            <button id="btn-test">Run Hardware Tests</button>
+        </div>
+
+        <!-- ROM loader -->
+        <div id="drop-zone">
+            <p>Drop a .z64 / .n64 / .v64 ROM here, or click to browse</p>
+            <p style="margin-top: 8px; font-size: 0.85em;">
+                Or: <button id="btn-demo" style="display: inline; padding: 4px 10px;">Load Embedded Demo</button>
+            </p>
+            <input type="file" id="rom-input" accept=".z64,.n64,.v64,.rom,.bin">
+        </div>
+
+        <!-- Status -->
+        <div id="status">
+            <div class="info">Initializing WASM module...</div>
+        </div>
+
+        <!-- Test results (hidden by default) -->
+        <div id="test-results"></div>
+
+        <!-- Keyboard map -->
+        <div class="keyboard-map">
+            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Analog Stick &nbsp;|&nbsp;
+            <kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&larr;</kbd><kbd>&rarr;</kbd> C-Buttons &nbsp;|&nbsp;
+            <kbd>Enter</kbd> Start &nbsp;|&nbsp;
+            <kbd>Z</kbd> A &nbsp;|&nbsp;
+            <kbd>X</kbd> B &nbsp;|&nbsp;
+            <kbd>Q</kbd> L &nbsp;|&nbsp;
+            <kbd>E</kbd> R &nbsp;|&nbsp;
+            <kbd>Shift</kbd> Z-Trigger
+        </div>
+    </div>
+
+    <footer>
+        <a href="https://github.com/lemmy-64/n64-systemtest">n64-systemtest</a> |
+        <a href="https://n64brew.dev">N64brew</a> |
+        <a href="https://github.com/Themaister/parallel-rdp">parallel-rdp</a>
+        <br>
+        All test ROMs and homebrew games are open-source. No copyrighted data is included.
+    </footer>
+
+    <!--
+        WASM + JS entry point.
+        The agent must generate:
+          - web/pkg/n64_frontend_web.js  (wasm-bindgen output)
+          - web/pkg/n64_frontend_web_bg.wasm
+          - web/main.js (glue code below)
+    -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>
