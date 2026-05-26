@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Fixture family 8: Pinned network download.
 Tests allowed network use with content-addressed inputs.
@@ -12,7 +11,9 @@ from common import FixtureContext, write_file
 
 
 # Pinned busybox image digest
-BUSYBOX_DIGEST = "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+BUSYBOX_DIGEST = (
+    "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+)
 
 
 def generate(ctx: FixtureContext):
@@ -31,7 +32,9 @@ def generate(ctx: FixtureContext):
     write_file(os.path.join(payload_dir, payload_filename), payload_content)
 
     # Dockerfile using ARG for payload URL and hash
-    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM busybox@{BUSYBOX_DIGEST}
+    write_file(
+        os.path.join(context_dir, "Dockerfile"),
+        f"""FROM busybox@{BUSYBOX_DIGEST}
 ARG PAYLOAD_URL={payload_url}
 ARG PAYLOAD_SHA256={payload_sha256}
 
@@ -39,7 +42,8 @@ RUN wget -O /payload "$PAYLOAD_URL" \\
     && echo "$PAYLOAD_SHA256  /payload" | sha256sum -c -
 
 CMD ["sha256sum", "/payload"]
-""")
+""",
+    )
 
     # Create mutated context with different payload
     mutated_dir = ctx.make_mutated_context_dir()
@@ -55,7 +59,9 @@ CMD ["sha256sum", "/payload"]
     write_file(os.path.join(payload_dir, mutated_filename), mutated_payload)
 
     # Update mutated Dockerfile
-    write_file(os.path.join(mutated_dir, "Dockerfile"), f"""FROM busybox@{BUSYBOX_DIGEST}
+    write_file(
+        os.path.join(mutated_dir, "Dockerfile"),
+        f"""FROM busybox@{BUSYBOX_DIGEST}
 ARG PAYLOAD_URL={mutated_url}
 ARG PAYLOAD_SHA256={mutated_sha256}
 
@@ -63,20 +69,23 @@ RUN wget -O /payload "$PAYLOAD_URL" \\
     && echo "$PAYLOAD_SHA256  /payload" | sha256sum -c -
 
 CMD ["sha256sum", "/payload"]
-""")
+""",
+    )
 
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "pinned_network",
-        "payload_url": payload_url,
-        "payload_sha256": payload_sha256,
-        "payload_filename": payload_filename,
-        "mutated_url": mutated_url,
-        "mutated_sha256": mutated_sha256,
-        "mutated_filename": mutated_filename,
-        "expected_output": f"{payload_sha256}  /payload",
-        "expected_output_mutated": f"{mutated_sha256}  /payload",
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "pinned_network",
+            "payload_url": payload_url,
+            "payload_sha256": payload_sha256,
+            "payload_filename": payload_filename,
+            "mutated_url": mutated_url,
+            "mutated_sha256": mutated_sha256,
+            "mutated_filename": mutated_filename,
+            "expected_output": f"{payload_sha256}  /payload",
+            "expected_output_mutated": f"{mutated_sha256}  /payload",
+        }
+    )
 
     ctx.write_smoke_test(f"""#!/bin/bash
 set -e

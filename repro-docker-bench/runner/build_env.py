@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Build environment simulation.
 Creates isolated build environments with different paths, hostnames,
@@ -9,7 +8,6 @@ import hashlib
 import os
 import random
 import shutil
-import time
 
 
 ENV_A = {
@@ -73,16 +71,21 @@ def create_build_environment(source_dir, work_dir, env_config, metadata):
     # Write environment metadata for the build tool to discover
     env_file = os.path.join(work_dir, "env.json")
     import json
+
     with open(env_file, "w") as f:
-        json.dump({
-            "hostname": env_config["hostname"],
-            "timezone": env_config["timezone"],
-            "locale": env_config["locale"],
-            "umask": oct(env_config["umask"]),
-            "home": env_config["home"],
-            "tmpdir": env_config["tmpdir"],
-            "source_path": context_path,
-        }, f, indent=2)
+        json.dump(
+            {
+                "hostname": env_config["hostname"],
+                "timezone": env_config["timezone"],
+                "locale": env_config["locale"],
+                "umask": oct(env_config["umask"]),
+                "home": env_config["home"],
+                "tmpdir": env_config["tmpdir"],
+                "source_path": context_path,
+            },
+            f,
+            indent=2,
+        )
 
     return context_path
 

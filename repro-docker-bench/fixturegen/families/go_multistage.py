@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Fixture family 2: Go multi-stage build with path/build-ID traps.
 Tests compiler/toolchain nondeterminism. Intentionally omits -trimpath
@@ -12,7 +11,9 @@ from common import FixtureContext, write_file
 
 
 # Pinned Go image digest
-GOLANG_DIGEST = "sha256:68097688c9854a7a6b1455ce290fa07c47cd23c09ed76790a8f75b1ccb0290ea"
+GOLANG_DIGEST = (
+    "sha256:68097688c9854a7a6b1455ce290fa07c47cd23c09ed76790a8f75b1ccb0290ea"
+)
 
 
 def generate(ctx: FixtureContext):
@@ -28,10 +29,13 @@ def generate(ctx: FixtureContext):
     # Create Go module
     module_name = f"example.com/{app_name}"
 
-    write_file(os.path.join(context_dir, "go.mod"), f"""module {module_name}
+    write_file(
+        os.path.join(context_dir, "go.mod"),
+        f"""module {module_name}
 
 go 1.21
-""")
+""",
+    )
 
     write_file(os.path.join(context_dir, "go.sum"), "")
 
@@ -39,7 +43,9 @@ go 1.21
     os.makedirs(os.path.join(context_dir, "cmd", "app"), exist_ok=True)
     os.makedirs(os.path.join(context_dir, "internal", "compute"), exist_ok=True)
 
-    write_file(os.path.join(context_dir, "cmd", "app", "main.go"), f"""package main
+    write_file(
+        os.path.join(context_dir, "cmd", "app", "main.go"),
+        f"""package main
 
 import (
 \t"crypto/sha256"
@@ -82,9 +88,12 @@ func main() {{
 \t}}
 \tfmt.Println("PASS: go app self-test")
 }}
-""")
+""",
+    )
 
-    write_file(os.path.join(context_dir, "internal", "compute", "hash.go"), f"""package compute
+    write_file(
+        os.path.join(context_dir, "internal", "compute", "hash.go"),
+        f"""package compute
 
 import (
 \t"crypto/sha256"
@@ -109,10 +118,13 @@ func HashWithSalt(input, secret string) string {{
 \th.Write([]byte(Salt))
 \treturn hex.EncodeToString(h.Sum(nil))
 }}
-""")
+""",
+    )
 
     # Dockerfile - intentionally omits -trimpath and -buildid flags
-    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM golang@{GOLANG_DIGEST} AS build
+    write_file(
+        os.path.join(context_dir, "Dockerfile"),
+        f"""FROM golang@{GOLANG_DIGEST} AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY cmd cmd
@@ -122,11 +134,13 @@ RUN go build -o /out/app ./cmd/app
 FROM scratch
 COPY --from=build /out/app /app
 ENTRYPOINT ["/app"]
-""")
+""",
+    )
 
     # Generate test input and expected output
     test_input = ctx.random_string(20)
     import hashlib
+
     h = hashlib.sha256()
     h.update(test_input.encode())
     h.update(magic_constant.encode())
@@ -152,14 +166,16 @@ ENTRYPOINT ["/app"]
     mutated_expected_hash = h2.hexdigest()
 
     # Write metadata
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "go_multistage",
-        "test_input": test_input,
-        "expected_output": expected_hash,
-        "expected_output_mutated": mutated_expected_hash,
-        "app_name": app_name,
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "go_multistage",
+            "test_input": test_input,
+            "expected_output": expected_hash,
+            "expected_output_mutated": mutated_expected_hash,
+            "app_name": app_name,
+        }
+    )
 
     # Write smoke test
     ctx.write_smoke_test(f"""#!/bin/bash

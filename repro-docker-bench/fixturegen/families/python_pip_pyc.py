@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Fixture family 3: Python image with pip, .pyc, and generated assets.
 Tests Python-specific reproducibility: pip installs, .pyc determinism,
@@ -13,7 +12,9 @@ from common import FixtureContext, write_file
 
 
 # Pinned Python image digest
-PYTHON_DIGEST = "sha256:3f0fe4b7eb2e9b5d4c0e75aeb784b9f3e6f9c3b3b2f1a4c8d7e6f5a4b3c2d1e0"
+PYTHON_DIGEST = (
+    "sha256:3f0fe4b7eb2e9b5d4c0e75aeb784b9f3e6f9c3b3b2f1a4c8d7e6f5a4b3c2d1e0"
+)
 
 
 def generate(ctx: FixtureContext):
@@ -21,7 +22,6 @@ def generate(ctx: FixtureContext):
     context_dir = ctx.make_context_dir()
 
     # Generate unique parameters
-    app_module = f"myapp_{ctx.random_string(6)}"
     secret_key = ctx.random_hex(32)
     data_values = [ctx.random_int(1, 10000) for _ in range(20)]
 
@@ -29,13 +29,18 @@ def generate(ctx: FixtureContext):
     app_dir = os.path.join(context_dir, "app")
     os.makedirs(app_dir, exist_ok=True)
 
-    write_file(os.path.join(app_dir, "__init__.py"), f"""\"\"\"Generated application module.\"\"\"
+    write_file(
+        os.path.join(app_dir, "__init__.py"),
+        f"""\"\"\"Generated application module.\"\"\"
 
 SECRET_KEY = "{secret_key}"
 VERSION = "1.0.{ctx.random_int(0, 99)}"
-""")
+""",
+    )
 
-    write_file(os.path.join(app_dir, "__main__.py"), f"""\"\"\"Main entry point.\"\"\"
+    write_file(
+        os.path.join(app_dir, "__main__.py"),
+        """\"\"\"Main entry point.\"\"\"
 import hashlib
 import json
 import os
@@ -77,9 +82,9 @@ def self_test():
             with open(asset_path, "rb") as f:
                 h.update(f.read())
         asset_hash = h.hexdigest()
-        print(f"assets_hash={{asset_hash}}")
+        print(f"assets_hash={asset_hash}")
 
-    print(f"data_hash={{result}}")
+    print(f"data_hash={result}")
     print("PASS: python self-test")
 
 
@@ -88,10 +93,13 @@ if __name__ == "__main__":
         self_test()
     else:
         self_test()
-""")
+""",
+    )
 
     # Generate assets module
-    write_file(os.path.join(app_dir, "generate_assets.py"), f"""\"\"\"Asset generation script.\"\"\"
+    write_file(
+        os.path.join(app_dir, "generate_assets.py"),
+        f"""\"\"\"Asset generation script.\"\"\"
 import hashlib
 import json
 import os
@@ -127,23 +135,32 @@ if __name__ == "__main__":
         print(f"Usage: {{sys.argv[0]}} <data_dir> <output_dir>")
         sys.exit(1)
     generate(sys.argv[1], sys.argv[2])
-""")
+""",
+    )
 
     # Create data directory with input
     data_dir = os.path.join(context_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
 
-    write_file(os.path.join(data_dir, "input.json"), f"""{{"values": {data_values}}}
-""")
+    write_file(
+        os.path.join(data_dir, "input.json"),
+        f"""{{"values": {data_values}}}
+""",
+    )
 
     # Create requirements.txt with pinned hashes (simulated)
     # In a real scenario these would point to the local PyPI mirror
-    write_file(os.path.join(context_dir, "requirements.txt"), """# Pinned dependencies (local mirror)
+    write_file(
+        os.path.join(context_dir, "requirements.txt"),
+        """# Pinned dependencies (local mirror)
 # In the actual benchmark, these resolve to the local PyPI mirror
-""")
+""",
+    )
 
     # Dockerfile
-    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM python@{PYTHON_DIGEST}
+    write_file(
+        os.path.join(context_dir, "Dockerfile"),
+        f"""FROM python@{PYTHON_DIGEST}
 WORKDIR /app
 
 COPY requirements.txt .
@@ -155,7 +172,8 @@ RUN python -m compileall app
 RUN python -m app.generate_assets data /app/generated
 
 CMD ["python", "-m", "app", "--self-test"]
-""")
+""",
+    )
 
     # Create mutated context
     mutated_dir = ctx.make_mutated_context_dir()
@@ -181,14 +199,16 @@ CMD ["python", "-m", "app", "--self-test"]
         h2.update(str(val).encode())
     mutated_hash = h2.hexdigest()
 
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "python_pip_pyc",
-        "expected_output": "PASS: python self-test",
-        "expected_output_mutated": "PASS: python self-test",
-        "expected_hash": expected_hash,
-        "mutated_hash": mutated_hash,
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "python_pip_pyc",
+            "expected_output": "PASS: python self-test",
+            "expected_output_mutated": "PASS: python self-test",
+            "expected_hash": expected_hash,
+            "mutated_hash": mutated_hash,
+        }
+    )
 
     ctx.write_smoke_test("""#!/bin/bash
 set -e

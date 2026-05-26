@@ -128,7 +128,9 @@ def _run_reproducible_fixture(fixture_dir, metadata, submission_bin, verbose):
     # Validate: runtime smoke tests
     if os.path.isfile(smoke_script):
         for env_name in ["A", "B", "C"]:
-            expected_key = "expected_output_mutated" if env_name == "C" else "expected_output"
+            expected_key = (
+                "expected_output_mutated" if env_name == "C" else "expected_output"
+            )
             expected = metadata.get(expected_key, "")
             smoke_result = run_smoke_test(
                 smoke_script, results[env_name]["output_dir"], expected
@@ -239,11 +241,16 @@ def _run_diagnosis_fixture(fixture_dir, metadata, submission_bin, verbose):
 def _invoke_tool(submission_bin, context_dir, dockerfile, output_dir):
     """Invoke the submission tool and return (exit_code, stdout, stderr)."""
     cmd = [
-        submission_bin, "build",
-        "--context", context_dir,
-        "--dockerfile", dockerfile,
-        "--output", output_dir,
-        "--source-date-epoch", SOURCE_DATE_EPOCH,
+        submission_bin,
+        "build",
+        "--context",
+        context_dir,
+        "--dockerfile",
+        dockerfile,
+        "--output",
+        output_dir,
+        "--source-date-epoch",
+        SOURCE_DATE_EPOCH,
     ]
 
     env = os.environ.copy()

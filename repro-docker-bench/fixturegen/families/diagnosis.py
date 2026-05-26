@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Fixture family 9: Generated unreproducible diagnosis.
 Tests that the tool correctly identifies and reports unreproducible inputs.
@@ -12,8 +11,12 @@ from common import FixtureContext, write_file
 
 
 # Pinned image digests
-BUSYBOX_DIGEST = "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
-DEBIAN_DIGEST = "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+BUSYBOX_DIGEST = (
+    "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+)
+DEBIAN_DIGEST = (
+    "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+)
 
 ALL_CAUSE_TYPES = [
     "UNPINNED_BASE_IMAGE",
@@ -53,46 +56,52 @@ def generate(ctx: FixtureContext):
 
     # Base image handling
     if "UNPINNED_BASE_IMAGE" in chosen_causes:
-        dockerfile_lines_unsafe.append('ARG BASE_IMAGE=debian:bookworm')
-        dockerfile_lines_unsafe.append('FROM ${BASE_IMAGE}')
-        expected_causes.append({
-            "type": "UNPINNED_BASE_IMAGE",
-            "location": f"Dockerfile:{line_num + 1}",
-        })
+        dockerfile_lines_unsafe.append("ARG BASE_IMAGE=debian:bookworm")
+        dockerfile_lines_unsafe.append("FROM ${BASE_IMAGE}")
+        expected_causes.append(
+            {
+                "type": "UNPINNED_BASE_IMAGE",
+                "location": f"Dockerfile:{line_num + 1}",
+            }
+        )
         line_num += 2
     else:
-        dockerfile_lines_unsafe.append(f'FROM debian@{DEBIAN_DIGEST}')
+        dockerfile_lines_unsafe.append(f"FROM debian@{DEBIAN_DIGEST}")
         line_num += 1
 
     # Safe always uses pinned
-    dockerfile_lines_safe.append(f'FROM debian@{DEBIAN_DIGEST}')
+    dockerfile_lines_safe.append(f"FROM debian@{DEBIAN_DIGEST}")
 
-    dockerfile_lines_unsafe.append('')
-    dockerfile_lines_unsafe.append('WORKDIR /app')
-    dockerfile_lines_unsafe.append('COPY scripts scripts')
-    dockerfile_lines_unsafe.append('')
+    dockerfile_lines_unsafe.append("")
+    dockerfile_lines_unsafe.append("WORKDIR /app")
+    dockerfile_lines_unsafe.append("COPY scripts scripts")
+    dockerfile_lines_unsafe.append("")
     line_num += 4
 
-    dockerfile_lines_safe.append('')
-    dockerfile_lines_safe.append('WORKDIR /app')
-    dockerfile_lines_safe.append('COPY scripts scripts')
-    dockerfile_lines_safe.append('')
+    dockerfile_lines_safe.append("")
+    dockerfile_lines_safe.append("WORKDIR /app")
+    dockerfile_lines_safe.append("COPY scripts scripts")
+    dockerfile_lines_safe.append("")
 
     # Generate scripts for each cause
-    script_idx = 0
-
     if "UNPINNED_APT_REPOSITORY" in chosen_causes:
-        script_name = f"install_unpinned_apt.sh"
+        script_name = "install_unpinned_apt.sh"
         script_content = """#!/bin/bash
 apt-get update
 apt-get install -y curl wget
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "UNPINNED_APT_REPOSITORY",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "UNPINNED_APT_REPOSITORY",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         # Safe version: pinned apt
@@ -101,20 +110,28 @@ apt-get update
 apt-get install -y --no-install-recommends curl wget
 rm -rf /var/lib/apt/lists/*
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_script, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_script, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     if "UNPINNED_PIP_DEPENDENCY" in chosen_causes:
         script_name = "install_pip_deps.sh"
         script_content = """#!/bin/bash
 pip install requests flask numpy
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "UNPINNED_PIP_DEPENDENCY",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "UNPINNED_PIP_DEPENDENCY",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         # Safe version doesn't exist in safe (just skip)
@@ -122,27 +139,37 @@ pip install requests flask numpy
 # No unpinned dependencies
 echo "deps ok"
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_pip, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_pip, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     if "UNPINNED_NPM_DEPENDENCY" in chosen_causes:
         script_name = "install_npm_deps.sh"
         script_content = """#!/bin/bash
 npm install express lodash
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "UNPINNED_NPM_DEPENDENCY",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "UNPINNED_NPM_DEPENDENCY",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         safe_npm = """#!/bin/bash
 echo "npm deps ok"
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_npm, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_npm, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     if "UNPINNED_NETWORK_DOWNLOAD" in chosen_causes:
         script_name = "fetch_latest_payload.sh"
@@ -150,19 +177,27 @@ echo "npm deps ok"
 curl -fsSL https://example.com/latest/release.tar.gz -o /tmp/release.tar.gz
 tar -xzf /tmp/release.tar.gz -C /opt/
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "UNPINNED_NETWORK_DOWNLOAD",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "UNPINNED_NETWORK_DOWNLOAD",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         safe_net = """#!/bin/bash
 echo "network ok (no download needed)"
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_net, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_net, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     if "TIMESTAMP_LEAK" in chosen_causes:
         script_name = "write_required_timestamp.sh"
@@ -170,20 +205,28 @@ echo "network ok (no download needed)"
 date +%s > /app/required_timestamp.txt
 date -R >> /app/required_timestamp.txt
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "TIMESTAMP_LEAK",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "TIMESTAMP_LEAK",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         safe_ts = """#!/bin/bash
 echo "1700000000" > /app/required_timestamp.txt
 echo "Tue, 14 Nov 2023 22:13:20 +0000" >> /app/required_timestamp.txt
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_ts, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_ts, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     if "RANDOMNESS_LEAK" in chosen_causes:
         script_name = "random_seed.sh"
@@ -191,19 +234,27 @@ echo "Tue, 14 Nov 2023 22:13:20 +0000" >> /app/required_timestamp.txt
 head -c 32 /dev/urandom | base64 > /app/session_key.txt
 cat /proc/sys/kernel/random/uuid >> /app/session_key.txt
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "RANDOMNESS_LEAK",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "RANDOMNESS_LEAK",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         safe_rand = """#!/bin/bash
 echo "deterministic-key-value" > /app/session_key.txt
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_rand, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_rand, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     if "HOSTNAME_LEAK" in chosen_causes:
         script_name = "embed_hostname.sh"
@@ -211,20 +262,28 @@ echo "deterministic-key-value" > /app/session_key.txt
 hostname > /app/build_host.txt
 echo "Built on: $(hostname)" >> /app/metadata.txt
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "HOSTNAME_LEAK",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "HOSTNAME_LEAK",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         safe_host = """#!/bin/bash
 echo "build-host" > /app/build_host.txt
 echo "Built on: build-host" >> /app/metadata.txt
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_host, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_host, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     if "BUILD_PATH_LEAK" in chosen_causes:
         script_name = "embed_paths.sh"
@@ -233,12 +292,18 @@ echo "$PWD" > /app/build_path.txt
 echo "$HOME" >> /app/build_path.txt
 realpath . >> /app/build_path.txt
 """
-        write_file(os.path.join(unsafe_dir, "scripts", script_name), script_content, executable=True)
-        dockerfile_lines_unsafe.append(f'RUN ./scripts/{script_name}')
-        expected_causes.append({
-            "type": "BUILD_PATH_LEAK",
-            "location": f"scripts/{script_name}:2",
-        })
+        write_file(
+            os.path.join(unsafe_dir, "scripts", script_name),
+            script_content,
+            executable=True,
+        )
+        dockerfile_lines_unsafe.append(f"RUN ./scripts/{script_name}")
+        expected_causes.append(
+            {
+                "type": "BUILD_PATH_LEAK",
+                "location": f"scripts/{script_name}:2",
+            }
+        )
         line_num += 1
 
         safe_path = """#!/bin/bash
@@ -246,15 +311,21 @@ echo "/app" > /app/build_path.txt
 echo "/root" >> /app/build_path.txt
 echo "/app" >> /app/build_path.txt
 """
-        write_file(os.path.join(safe_dir, "scripts", script_name), safe_path, executable=True)
-        dockerfile_lines_safe.append(f'RUN ./scripts/{script_name}')
+        write_file(
+            os.path.join(safe_dir, "scripts", script_name), safe_path, executable=True
+        )
+        dockerfile_lines_safe.append(f"RUN ./scripts/{script_name}")
 
     # Add CMD
-    dockerfile_lines_unsafe.append('')
-    dockerfile_lines_unsafe.append('CMD ["sh", "-c", "cat /app/*.txt 2>/dev/null; echo done"]')
+    dockerfile_lines_unsafe.append("")
+    dockerfile_lines_unsafe.append(
+        'CMD ["sh", "-c", "cat /app/*.txt 2>/dev/null; echo done"]'
+    )
 
-    dockerfile_lines_safe.append('')
-    dockerfile_lines_safe.append('CMD ["sh", "-c", "cat /app/*.txt 2>/dev/null; echo done"]')
+    dockerfile_lines_safe.append("")
+    dockerfile_lines_safe.append(
+        'CMD ["sh", "-c", "cat /app/*.txt 2>/dev/null; echo done"]'
+    )
 
     # Write Dockerfiles
     write_file(
@@ -270,39 +341,43 @@ echo "/app" >> /app/build_path.txt
     safe_mutated = os.path.join(ctx.output_dir, "safe", "mutated_context")
     shutil.copytree(safe_dir, safe_mutated)
 
-    # Mutate: change a script output
-    mutated_ts = os.path.join(safe_mutated, "scripts", "embed_hostname.sh") if os.path.isfile(
-        os.path.join(safe_mutated, "scripts", "embed_hostname.sh")
-    ) else None
-
     # Just add a marker file to the mutated version
-    write_file(os.path.join(safe_mutated, "scripts", "mutation_marker.sh"), """#!/bin/bash
+    write_file(
+        os.path.join(safe_mutated, "scripts", "mutation_marker.sh"),
+        """#!/bin/bash
 echo "mutated-output" > /app/mutation.txt
-""", executable=True)
+""",
+        executable=True,
+    )
 
     # Update mutated Dockerfile to include the marker
     mutated_dockerfile = os.path.join(safe_mutated, "Dockerfile")
     with open(mutated_dockerfile) as f:
         content = f.read()
     content = content.replace(
-        'CMD ["sh", "-c"',
-        'RUN ./scripts/mutation_marker.sh\nCMD ["sh", "-c"'
+        'CMD ["sh", "-c"', 'RUN ./scripts/mutation_marker.sh\nCMD ["sh", "-c"'
     )
     with open(mutated_dockerfile, "w") as f:
         f.write(content)
 
     # Write safe smoke test
-    write_file(os.path.join(ctx.output_dir, "safe", "test_container.sh"), """#!/bin/bash
+    write_file(
+        os.path.join(ctx.output_dir, "safe", "test_container.sh"),
+        """#!/bin/bash
 set -e
 IMAGE="$1"
 echo "PASS: safe cousin verified"
-""", executable=True)
+""",
+        executable=True,
+    )
 
     # Write metadata
-    ctx.write_metadata({
-        "type": "diagnosis",
-        "family": "diagnosis",
-        "expected_causes": expected_causes,
-        "chosen_cause_types": [c["type"] for c in expected_causes],
-        "num_causes": len(expected_causes),
-    })
+    ctx.write_metadata(
+        {
+            "type": "diagnosis",
+            "family": "diagnosis",
+            "expected_causes": expected_causes,
+            "chosen_cause_types": [c["type"] for c in expected_causes],
+            "num_causes": len(expected_causes),
+        }
+    )

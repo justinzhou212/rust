@@ -5,7 +5,6 @@ Compares two OCI image layouts for bit-for-bit equality.
 Provides actionable failure messages.
 """
 
-import hashlib
 import json
 import os
 import sys
@@ -80,7 +79,6 @@ def _validate_oci_layout(directory, label):
     """Validate basic OCI layout structure. Returns error string or None."""
     oci_layout = os.path.join(directory, "oci-layout")
     index_json = os.path.join(directory, "index.json")
-    blobs_dir = os.path.join(directory, "blobs")
 
     if not os.path.isfile(oci_layout) and not os.path.isfile(index_json):
         # Allow layouts without oci-layout file if index.json exists

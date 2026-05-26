@@ -5,7 +5,6 @@ Exit 0 only if ALL fixtures pass (all-or-nothing).
 """
 
 import argparse
-import json
 import os
 import sys
 import time
@@ -28,7 +27,9 @@ FIXTURE_FAMILIES = [
 
 def main():
     parser = argparse.ArgumentParser(description="Reproducible Docker Benchmark Runner")
-    parser.add_argument("--submission", required=True, help="Path to submission directory")
+    parser.add_argument(
+        "--submission", required=True, help="Path to submission directory"
+    )
     parser.add_argument("--fixtures", required=True, help="Path to generated fixtures")
     parser.add_argument("--seed", default="20260526", help="Generation seed")
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
@@ -39,7 +40,10 @@ def main():
         print(f"FATAL: submission binary not found: {submission_bin}", file=sys.stderr)
         sys.exit(1)
     if not os.access(submission_bin, os.X_OK):
-        print(f"FATAL: submission binary not executable: {submission_bin}", file=sys.stderr)
+        print(
+            f"FATAL: submission binary not executable: {submission_bin}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     fixtures_dir = os.path.abspath(args.fixtures)
@@ -59,9 +63,9 @@ def main():
             all_passed = False
             continue
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"FIXTURE: {family}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         start = time.time()
         try:
@@ -92,9 +96,9 @@ def main():
 
     total_elapsed = time.time() - total_start
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"SUMMARY (seed={args.seed}, elapsed={total_elapsed:.1f}s)")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for family in FIXTURE_FAMILIES:
         r = results.get(family, {"status": "MISSING"})

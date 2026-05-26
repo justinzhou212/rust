@@ -9,13 +9,10 @@ import json
 import os
 import re
 import sys
-import time
 from datetime import datetime
 
 
-ALLOWED_HOSTS_PATTERN = re.compile(
-    r"^(apt|pypi|npm|payload)(\.[a-z0-9-]+)?\.local$"
-)
+ALLOWED_HOSTS_PATTERN = re.compile(r"^(apt|pypi|npm|payload)(\.[a-z0-9-]+)?\.local$")
 
 DEFAULT_ALLOWED_PORTS = {80, 443, 8080, 8081, 8082, 8083}
 
@@ -111,12 +108,16 @@ class NetworkGuard:
         """Save request log to file."""
         log_file = os.path.join(self.log_dir, f"network-{self.run_id}.json")
         with open(log_file, "w") as f:
-            json.dump({
-                "run_id": self.run_id,
-                "total_requests": len(self.requests),
-                "violations": len(self.violations),
-                "requests": self.requests,
-            }, f, indent=2)
+            json.dump(
+                {
+                    "run_id": self.run_id,
+                    "total_requests": len(self.requests),
+                    "violations": len(self.violations),
+                    "requests": self.requests,
+                },
+                f,
+                indent=2,
+            )
         return log_file
 
     def summary(self):

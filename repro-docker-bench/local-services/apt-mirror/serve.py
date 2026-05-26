@@ -6,7 +6,6 @@ Ensures apt installs are reproducible across builds.
 """
 
 import http.server
-import json
 import os
 import sys
 import threading

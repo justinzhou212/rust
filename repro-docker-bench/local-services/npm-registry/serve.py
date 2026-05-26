@@ -56,7 +56,9 @@ class NpmRegistryHandler(http.server.BaseHTTPRequestHandler):
         if not package_name:
             package_name = self.path.strip("/")
 
-        meta_path = os.path.join(REGISTRY_DIR, "packages", package_name, "metadata.json")
+        meta_path = os.path.join(
+            REGISTRY_DIR, "packages", package_name, "metadata.json"
+        )
         if os.path.isfile(meta_path):
             with open(meta_path) as f:
                 data = f.read()
@@ -69,7 +71,9 @@ class NpmRegistryHandler(http.server.BaseHTTPRequestHandler):
 
     def _serve_tarball(self, package_name, tarball_name):
         """Serve package tarball."""
-        tarball_path = os.path.join(REGISTRY_DIR, "packages", package_name, tarball_name)
+        tarball_path = os.path.join(
+            REGISTRY_DIR, "packages", package_name, tarball_name
+        )
         if os.path.isfile(tarball_path):
             with open(tarball_path, "rb") as f:
                 data = f.read()

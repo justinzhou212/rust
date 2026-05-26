@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Fixture family 5: Debian apt install from local snapshot mirror.
 Tests OS package manager determinism.
@@ -11,7 +10,9 @@ from common import FixtureContext, write_file
 
 
 # Pinned Debian image digest
-DEBIAN_DIGEST = "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+DEBIAN_DIGEST = (
+    "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+)
 
 
 def generate(ctx: FixtureContext):
@@ -29,7 +30,7 @@ set -e
 echo "Checking installed packages..."
 
 # Verify packages are installed
-for pkg in {' '.join(packages)}; do
+for pkg in {" ".join(packages)}; do
     if ! dpkg -l "$pkg" >/dev/null 2>&1; then
         echo "FAIL: package $pkg not installed"
         exit 1
@@ -53,13 +54,16 @@ echo "PASS: debian apt verified"
     write_file(os.path.join(context_dir, "check.sh"), check_script, executable=True)
 
     # Dockerfile
-    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM debian@{DEBIAN_DIGEST}
+    write_file(
+        os.path.join(context_dir, "Dockerfile"),
+        f"""FROM debian@{DEBIAN_DIGEST}
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    {' '.join(packages)} \\
+    {" ".join(packages)} \\
     && rm -rf /var/lib/apt/lists/*
 COPY check.sh /check.sh
 CMD ["bash", "/check.sh"]
-""")
+""",
+    )
 
     # Create mutated context
     mutated_dir = ctx.make_mutated_context_dir()
@@ -73,7 +77,7 @@ set -e
 echo "Checking installed packages..."
 
 # Verify packages are installed
-for pkg in {' '.join(packages)} jq; do
+for pkg in {" ".join(packages)} jq; do
     if ! dpkg -l "$pkg" >/dev/null 2>&1; then
         echo "FAIL: package $pkg not installed"
         exit 1
@@ -95,21 +99,26 @@ echo "PASS: debian apt verified"
     write_file(os.path.join(mutated_dir, "check.sh"), mutated_check, executable=True)
 
     # Mutated Dockerfile adds jq
-    write_file(os.path.join(mutated_dir, "Dockerfile"), f"""FROM debian@{DEBIAN_DIGEST}
+    write_file(
+        os.path.join(mutated_dir, "Dockerfile"),
+        f"""FROM debian@{DEBIAN_DIGEST}
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    {' '.join(packages)} jq \\
+    {" ".join(packages)} jq \\
     && rm -rf /var/lib/apt/lists/*
 COPY check.sh /check.sh
 CMD ["bash", "/check.sh"]
-""")
+""",
+    )
 
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "debian_apt",
-        "expected_output": "PASS: debian apt verified",
-        "expected_output_mutated": "PASS: debian apt verified",
-        "packages": packages,
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "debian_apt",
+            "expected_output": "PASS: debian apt verified",
+            "expected_output_mutated": "PASS: debian apt verified",
+            "packages": packages,
+        }
+    )
 
     ctx.write_smoke_test("""#!/bin/bash
 set -e

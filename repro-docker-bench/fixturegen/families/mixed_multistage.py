@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
 """
 Fixture family 7: Mixed multi-stage real app.
 Integrated realistic test covering frontend (Node) + backend (Rust) +
 multi-stage COPY + final minimal runtime image.
 """
 
-import hashlib
 import json
 import os
 import shutil
@@ -16,7 +14,9 @@ from common import FixtureContext, write_file
 # Pinned image digests
 NODE_DIGEST = "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
 RUST_DIGEST = "sha256:b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
-DEBIAN_DIGEST = "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+DEBIAN_DIGEST = (
+    "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+)
 
 
 def generate(ctx: FixtureContext):
@@ -33,22 +33,36 @@ def generate(ctx: FixtureContext):
     frontend_dir = os.path.join(context_dir, "frontend")
     os.makedirs(os.path.join(frontend_dir, "src"), exist_ok=True)
 
-    write_file(os.path.join(frontend_dir, "package.json"), json.dumps({
-        "name": f"{app_name}-frontend",
-        "version": "1.0.0",
-        "private": True,
-        "scripts": {
-            "build": "node build.js",
-        },
-    }, indent=2) + "\n")
+    write_file(
+        os.path.join(frontend_dir, "package.json"),
+        json.dumps(
+            {
+                "name": f"{app_name}-frontend",
+                "version": "1.0.0",
+                "private": True,
+                "scripts": {
+                    "build": "node build.js",
+                },
+            },
+            indent=2,
+        )
+        + "\n",
+    )
 
-    write_file(os.path.join(frontend_dir, "package-lock.json"), json.dumps({
-        "name": f"{app_name}-frontend",
-        "version": "1.0.0",
-        "lockfileVersion": 3,
-        "requires": True,
-        "packages": {"": {"name": f"{app_name}-frontend", "version": "1.0.0"}},
-    }, indent=2) + "\n")
+    write_file(
+        os.path.join(frontend_dir, "package-lock.json"),
+        json.dumps(
+            {
+                "name": f"{app_name}-frontend",
+                "version": "1.0.0",
+                "lockfileVersion": 3,
+                "requires": True,
+                "packages": {"": {"name": f"{app_name}-frontend", "version": "1.0.0"}},
+            },
+            indent=2,
+        )
+        + "\n",
+    )
 
     # Frontend source
     index_html = f"""<!DOCTYPE html>
@@ -77,7 +91,9 @@ module.exports = {{ TOKEN }};
     write_file(os.path.join(frontend_dir, "src", "app.js"), app_js)
 
     # Frontend build script
-    write_file(os.path.join(frontend_dir, "build.js"), """'use strict';
+    write_file(
+        os.path.join(frontend_dir, "build.js"),
+        """'use strict';
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -100,13 +116,16 @@ fs.writeFileSync(
   JSON.stringify(manifest, null, 2) + '\\n'
 );
 console.log(`Built ${files.length} frontend files`);
-""")
+""",
+    )
 
     # ---- Backend (Rust) ----
     backend_dir = os.path.join(context_dir, "backend")
     os.makedirs(os.path.join(backend_dir, "src"), exist_ok=True)
 
-    write_file(os.path.join(backend_dir, "Cargo.toml"), f"""[package]
+    write_file(
+        os.path.join(backend_dir, "Cargo.toml"),
+        f"""[package]
 name = "{app_name}-server"
 version = "0.1.0"
 edition = "2021"
@@ -114,15 +133,21 @@ edition = "2021"
 [[bin]]
 name = "server"
 path = "src/main.rs"
-""")
+""",
+    )
 
-    write_file(os.path.join(backend_dir, "Cargo.lock"), f"""# Minimal lock file
+    write_file(
+        os.path.join(backend_dir, "Cargo.lock"),
+        f"""# Minimal lock file
 [[package]]
 name = "{app_name}-server"
 version = "0.1.0"
-""")
+""",
+    )
 
-    write_file(os.path.join(backend_dir, "src", "main.rs"), f"""use std::env;
+    write_file(
+        os.path.join(backend_dir, "src", "main.rs"),
+        f"""use std::env;
 use std::fs;
 use std::path::Path;
 
@@ -163,10 +188,13 @@ fn main() {{
     }}
     println!("Server starting on route {{}}", API_ROUTE);
 }}
-""")
+""",
+    )
 
     # ---- Dockerfile ----
-    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM node@{NODE_DIGEST} AS frontend
+    write_file(
+        os.path.join(context_dir, "Dockerfile"),
+        f"""FROM node@{NODE_DIGEST} AS frontend
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci 2>/dev/null || npm install
@@ -185,7 +213,8 @@ FROM debian@{DEBIAN_DIGEST}
 COPY --from=backend /backend/target/release/server /usr/local/bin/server
 COPY --from=frontend /frontend/dist /srv/static
 CMD ["server", "--self-test"]
-""")
+""",
+    )
 
     # Create mutated context
     mutated_dir = ctx.make_mutated_context_dir()
@@ -207,15 +236,17 @@ CMD ["server", "--self-test"]
     with open(mutated_app, "w") as f:
         f.write(content)
 
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "mixed_multistage",
-        "expected_output": "PASS: mixed app self-test",
-        "expected_output_mutated": "PASS: mixed app self-test",
-        "app_name": app_name,
-        "static_token": static_token,
-        "mutated_token": mutated_token,
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "mixed_multistage",
+            "expected_output": "PASS: mixed app self-test",
+            "expected_output_mutated": "PASS: mixed app self-test",
+            "app_name": app_name,
+            "static_token": static_token,
+            "mutated_token": mutated_token,
+        }
+    )
 
     ctx.write_smoke_test("""#!/bin/bash
 set -e

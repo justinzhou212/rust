@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Fixture family 6: Internal archive generation.
 Tests nondeterminism inside application-generated files.
@@ -13,7 +12,9 @@ from common import FixtureContext, write_file
 
 
 # Pinned busybox image digest
-BUSYBOX_DIGEST = "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+BUSYBOX_DIGEST = (
+    "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+)
 
 
 def generate(ctx: FixtureContext):
@@ -35,7 +36,9 @@ def generate(ctx: FixtureContext):
 
     # Dockerfile - the key issue is `shuf` in tar which introduces ordering
     # nondeterminism, and gzip which embeds timestamps
-    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM busybox@{BUSYBOX_DIGEST}
+    write_file(
+        os.path.join(context_dir, "Dockerfile"),
+        f"""FROM busybox@{BUSYBOX_DIGEST}
 WORKDIR /work
 
 COPY files /work/files
@@ -45,7 +48,8 @@ RUN mkdir /verify && gzip -cd /bundle.tar.gz | tar -x -C /verify
 RUN find /verify -type f | sort | xargs sha256sum > /bundle-manifest.txt
 
 CMD ["sh", "-c", "gzip -cd /bundle.tar.gz | tar -x -C /tmp/out && find /tmp/out -type f | sort | xargs sha256sum | diff -u /bundle-manifest.txt - && echo 'PASS: archive verified'"]
-""")
+""",
+    )
 
     # Create mutated context
     mutated_dir = ctx.make_mutated_context_dir()
@@ -57,14 +61,16 @@ CMD ["sh", "-c", "gzip -cd /bundle.tar.gz | tar -x -C /tmp/out && find /tmp/out 
     new_content = ctx.random_bytes(ctx.random_int(64, 2048))
     write_file(os.path.join(mutated_dir, "files", mutate_file), new_content)
 
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "internal_archive",
-        "num_files": num_files,
-        "expected_output": "PASS: archive verified",
-        "expected_output_mutated": "PASS: archive verified",
-        "mutated_file": mutate_file,
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "internal_archive",
+            "num_files": num_files,
+            "expected_output": "PASS: archive verified",
+            "expected_output_mutated": "PASS: archive verified",
+            "mutated_file": mutate_file,
+        }
+    )
 
     ctx.write_smoke_test("""#!/bin/bash
 set -e

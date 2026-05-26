@@ -1,19 +1,19 @@
-#!/usr/bin/env python3
 """
 Fixture family 1: Complex file-tree image.
 Tests OCI/layer/file-tree determinism: COPY, .dockerignore, file ordering,
 mtimes, modes, symlinks, image config metadata, runtime preservation.
 """
 
-import hashlib
 import os
 import shutil
 
-from common import FixtureContext, write_file, write_json
+from common import FixtureContext, write_file
 
 
 # Pinned busybox image digest
-BUSYBOX_DIGEST = "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+BUSYBOX_DIGEST = (
+    "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+)
 
 
 def generate(ctx: FixtureContext):
@@ -30,7 +30,9 @@ def generate(ctx: FixtureContext):
     dirs = ["data"]
     for i in range(num_dirs):
         depth = ctx.random_int(1, 4)
-        parts = ["data"] + [ctx.random_string(ctx.random_int(3, 10)) for _ in range(depth)]
+        parts = ["data"] + [
+            ctx.random_string(ctx.random_int(3, 10)) for _ in range(depth)
+        ]
         dirs.append(os.path.join(*parts))
 
     for d in dirs:
@@ -97,11 +99,13 @@ def generate(ctx: FixtureContext):
     dockerignore_lines = []
     for f in ignored_files:
         dockerignore_lines.append(f)
-    dockerignore_lines.extend([
-        "*.tmp",
-        ".git",
-        "*.log",
-    ])
+    dockerignore_lines.extend(
+        [
+            "*.tmp",
+            ".git",
+            "*.log",
+        ]
+    )
     write_file(
         os.path.join(context_dir, ".dockerignore"),
         "\n".join(dockerignore_lines) + "\n",
@@ -172,16 +176,18 @@ CMD ["sh", "-c", "sha256sum -c /app/manifest.txt && /app/check.sh"]
             write_file(mutated_path, new_content)
 
     # Write metadata
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "file_tree",
-        "num_files": num_files,
-        "num_dirs": num_dirs,
-        "num_symlinks": num_symlinks,
-        "num_ignored": num_ignored,
-        "expected_output": "PASS: file tree verified",
-        "expected_output_mutated": "PASS: file tree verified",
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "file_tree",
+            "num_files": num_files,
+            "num_dirs": num_dirs,
+            "num_symlinks": num_symlinks,
+            "num_ignored": num_ignored,
+            "expected_output": "PASS: file tree verified",
+            "expected_output_mutated": "PASS: file tree verified",
+        }
+    )
 
     # Write smoke test
     ctx.write_smoke_test("""#!/bin/bash

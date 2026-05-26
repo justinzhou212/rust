@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Fixture family 4: Node/npm image with lockfile and build output.
 Tests npm-specific behavior: lockfile fidelity, local npm registry,
@@ -28,34 +27,48 @@ def generate(ctx: FixtureContext):
     port = ctx.random_int(3000, 9000)
 
     # Create package.json
-    write_file(os.path.join(context_dir, "package.json"), json.dumps({
-        "name": app_name,
-        "version": "1.0.0",
-        "private": True,
-        "scripts": {
-            "build": "node scripts/build.js",
-            "start": f"node dist/server.js",
-            "self-test": "node dist/server.js --self-test",
-        },
-        "dependencies": {},
-        "devDependencies": {},
-    }, indent=2) + "\n")
-
-    # Create package-lock.json (minimal)
-    write_file(os.path.join(context_dir, "package-lock.json"), json.dumps({
-        "name": app_name,
-        "version": "1.0.0",
-        "lockfileVersion": 3,
-        "requires": True,
-        "packages": {
-            "": {
+    write_file(
+        os.path.join(context_dir, "package.json"),
+        json.dumps(
+            {
                 "name": app_name,
                 "version": "1.0.0",
+                "private": True,
+                "scripts": {
+                    "build": "node scripts/build.js",
+                    "start": "node dist/server.js",
+                    "self-test": "node dist/server.js --self-test",
+                },
                 "dependencies": {},
                 "devDependencies": {},
-            }
-        }
-    }, indent=2) + "\n")
+            },
+            indent=2,
+        )
+        + "\n",
+    )
+
+    # Create package-lock.json (minimal)
+    write_file(
+        os.path.join(context_dir, "package-lock.json"),
+        json.dumps(
+            {
+                "name": app_name,
+                "version": "1.0.0",
+                "lockfileVersion": 3,
+                "requires": True,
+                "packages": {
+                    "": {
+                        "name": app_name,
+                        "version": "1.0.0",
+                        "dependencies": {},
+                        "devDependencies": {},
+                    }
+                },
+            },
+            indent=2,
+        )
+        + "\n",
+    )
 
     # Create source files
     os.makedirs(os.path.join(context_dir, "src"), exist_ok=True)
@@ -63,7 +76,9 @@ def generate(ctx: FixtureContext):
     os.makedirs(os.path.join(context_dir, "scripts"), exist_ok=True)
 
     # Server source
-    write_file(os.path.join(context_dir, "src", "server.js"), f"""'use strict';
+    write_file(
+        os.path.join(context_dir, "src", "server.js"),
+        f"""'use strict';
 
 const http = require('http');
 const fs = require('fs');
@@ -123,7 +138,8 @@ const server = http.createServer(handleRequest);
 server.listen(PORT, () => {{
   console.log(`Server listening on port ${{PORT}}`);
 }});
-""")
+""",
+    )
 
     # Public assets
     index_content = f"""<!DOCTYPE html>
@@ -139,7 +155,9 @@ server.listen(PORT, () => {{
     write_file(os.path.join(context_dir, "public", "index.html"), index_content)
 
     # Build script
-    write_file(os.path.join(context_dir, "scripts", "build.js"), """'use strict';
+    write_file(
+        os.path.join(context_dir, "scripts", "build.js"),
+        """'use strict';
 
 const fs = require('fs');
 const path = require('path');
@@ -178,10 +196,13 @@ fs.writeFileSync(
 );
 
 console.log(`Built ${files.length} source files, ${publicFiles.length} public assets`);
-""")
+""",
+    )
 
     # Dockerfile
-    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM node@{NODE_DIGEST}
+    write_file(
+        os.path.join(context_dir, "Dockerfile"),
+        f"""FROM node@{NODE_DIGEST}
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -193,7 +214,8 @@ COPY scripts scripts
 RUN npm run build
 
 CMD ["node", "dist/server.js", "--self-test"]
-""")
+""",
+    )
 
     # Create mutated context
     mutated_dir = ctx.make_mutated_context_dir()
@@ -219,15 +241,17 @@ CMD ["node", "dist/server.js", "--self-test"]
     h2.update(mutated_token.encode())
     mutated_expected = h2.hexdigest()
 
-    ctx.write_metadata({
-        "type": "reproducible",
-        "family": "node_npm",
-        "expected_output": "PASS: node self-test",
-        "expected_output_mutated": "PASS: node self-test",
-        "expected_hash": expected_hash,
-        "mutated_hash": mutated_expected,
-        "app_name": app_name,
-    })
+    ctx.write_metadata(
+        {
+            "type": "reproducible",
+            "family": "node_npm",
+            "expected_output": "PASS: node self-test",
+            "expected_output_mutated": "PASS: node self-test",
+            "expected_hash": expected_hash,
+            "mutated_hash": mutated_expected,
+            "app_name": app_name,
+        }
+    )
 
     ctx.write_smoke_test("""#!/bin/bash
 set -e

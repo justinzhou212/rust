@@ -24,7 +24,9 @@ class PayloadServerHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=PAYLOAD_DIR, **kwargs)
 
     def log_message(self, format, *args):
-        sys.stderr.write(f"[payload-server] {self.address_string()} - {format % args}\n")
+        sys.stderr.write(
+            f"[payload-server] {self.address_string()} - {format % args}\n"
+        )
 
     def do_GET(self):
         """Handle GET requests, serving payload files."""

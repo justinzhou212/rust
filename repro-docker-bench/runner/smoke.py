@@ -7,7 +7,6 @@ Imports OCI image and runs fixture-specific test_container.sh against it.
 import json
 import os
 import subprocess
-import sys
 import tempfile
 
 
@@ -156,7 +155,7 @@ def _validate_rootfs_directly(oci_dir, smoke_script, expected_output):
             return {
                 "passed": False,
                 "output": proc.stdout,
-                "error": f"Output mismatch in rootfs mode",
+                "error": "Output mismatch in rootfs mode",
             }
 
         return {"passed": True, "output": proc.stdout, "error": ""}
