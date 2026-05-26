@@ -27,7 +27,7 @@ def generate(ctx: FixtureContext):
     os.makedirs(files_dir, exist_ok=True)
 
     file_manifest = {}
-    for i in range(num_files):
+    for _i in range(num_files):
         name = f"{ctx.random_string(ctx.random_int(4, 10))}.dat"
         content = ctx.random_bytes(ctx.random_int(64, 2048))
         path = os.path.join(files_dir, name)

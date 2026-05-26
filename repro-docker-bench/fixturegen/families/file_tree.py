@@ -28,7 +28,7 @@ def generate(ctx: FixtureContext):
 
     # Create directory structure
     dirs = ["data"]
-    for i in range(num_dirs):
+    for _i in range(num_dirs):
         depth = ctx.random_int(1, 4)
         parts = ["data"] + [
             ctx.random_string(ctx.random_int(3, 10)) for _ in range(depth)
@@ -66,7 +66,7 @@ def generate(ctx: FixtureContext):
 
     # Create symlinks
     symlinks = []
-    for i in range(num_symlinks):
+    for _i in range(num_symlinks):
         if not data_files:
             break
         target_file = ctx.random_choice(data_files)[0]
@@ -87,7 +87,7 @@ def generate(ctx: FixtureContext):
 
     # Create .dockerignore with ignored files
     ignored_files = []
-    for i in range(num_ignored):
+    for _i in range(num_ignored):
         name = f"ignored-{ctx.random_string(8)}.tmp"
         target_dir = ctx.random_choice(dirs)
         path = os.path.join(target_dir, name)
