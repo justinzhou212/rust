@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# repro-docker: Reproducible Docker image builder
+#
+# This is the submission entry point. Replace this placeholder with your
+# implementation that produces bit-for-bit reproducible OCI images.
+#
+# Interface:
+#   repro-docker build \
+#     --context <context-dir> \
+#     --dockerfile <dockerfile-path> \
+#     --output <oci-layout-dir> \
+#     --source-date-epoch <unix-seconds>
+#
+# Exit codes:
+#   0  - Success, OCI image written to --output
+#   78 - Unreproducible input detected, diagnosis JSON on stdout
+#   1  - General error
+#
+set -euo pipefail
+
+COMMAND="${1:-}"
+
+if [ "$COMMAND" != "build" ]; then
+    echo "Usage: repro-docker build --context <dir> --dockerfile <path> --output <dir> --source-date-epoch <seconds>" >&2
+    exit 1
+fi
+
+shift
+
+# Parse arguments
+CONTEXT=""
+DOCKERFILE=""
+OUTPUT=""
+SOURCE_DATE_EPOCH_ARG=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --context) CONTEXT="$2"; shift 2 ;;
+        --dockerfile) DOCKERFILE="$2"; shift 2 ;;
+        --output) OUTPUT="$2"; shift 2 ;;
+        --source-date-epoch) SOURCE_DATE_EPOCH_ARG="$2"; shift 2 ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
+
+# Validate required arguments
+if [ -z "$CONTEXT" ] || [ -z "$DOCKERFILE" ] || [ -z "$OUTPUT" ]; then
+    echo "Missing required arguments" >&2
+    echo "Usage: repro-docker build --context <dir> --dockerfile <path> --output <dir> --source-date-epoch <seconds>" >&2
+    exit 1
+fi
+
+if [ ! -d "$CONTEXT" ]; then
+    echo "Context directory not found: $CONTEXT" >&2
+    exit 1
+fi
+
+if [ ! -f "$DOCKERFILE" ]; then
+    echo "Dockerfile not found: $DOCKERFILE" >&2
+    exit 1
+fi
+
+# Export SOURCE_DATE_EPOCH for reproducibility
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH_ARG:-0}"
+
+echo "ERROR: Not implemented. Replace this placeholder with your solution." >&2
+echo "Context: $CONTEXT" >&2
+echo "Dockerfile: $DOCKERFILE" >&2
+echo "Output: $OUTPUT" >&2
+echo "SOURCE_DATE_EPOCH: $SOURCE_DATE_EPOCH" >&2
+exit 1

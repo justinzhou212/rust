@@ -1,0 +1,18 @@
+# Generated at runtime
+fixtures/
+__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Local service data (generated)
+local-services/*/data/
+
+# Temporary files
+/tmp/
+*.swp
+*.swo

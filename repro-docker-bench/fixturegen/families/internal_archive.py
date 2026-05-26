@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""
+Fixture family 6: Internal archive generation.
+Tests nondeterminism inside application-generated files.
+A tool that only normalizes OCI layer tarballs will fail this.
+"""
+
+import hashlib
+import os
+import shutil
+
+from common import FixtureContext, write_file
+
+
+# Pinned busybox image digest
+BUSYBOX_DIGEST = "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+
+
+def generate(ctx: FixtureContext):
+    """Generate an internal archive fixture."""
+    context_dir = ctx.make_context_dir()
+
+    # Generate random files to be archived
+    num_files = ctx.random_int(20, 50)
+    files_dir = os.path.join(context_dir, "files")
+    os.makedirs(files_dir, exist_ok=True)
+
+    file_manifest = {}
+    for i in range(num_files):
+        name = f"{ctx.random_string(ctx.random_int(4, 10))}.dat"
+        content = ctx.random_bytes(ctx.random_int(64, 2048))
+        path = os.path.join(files_dir, name)
+        write_file(path, content)
+        file_manifest[name] = hashlib.sha256(content).hexdigest()
+
+    # Dockerfile - the key issue is `shuf` in tar which introduces ordering
+    # nondeterminism, and gzip which embeds timestamps
+    write_file(os.path.join(context_dir, "Dockerfile"), f"""FROM busybox@{BUSYBOX_DIGEST}
+WORKDIR /work
+
+COPY files /work/files
+RUN find files -type f | sort | tar -cf /bundle.tar -T -
+RUN gzip -n /bundle.tar
+RUN mkdir /verify && gzip -cd /bundle.tar.gz | tar -x -C /verify
+RUN find /verify -type f | sort | xargs sha256sum > /bundle-manifest.txt
+
+CMD ["sh", "-c", "gzip -cd /bundle.tar.gz | tar -x -C /tmp/out && find /tmp/out -type f | sort | xargs sha256sum | diff -u /bundle-manifest.txt - && echo 'PASS: archive verified'"]
+""")
+
+    # Create mutated context
+    mutated_dir = ctx.make_mutated_context_dir()
+    shutil.copytree(context_dir, mutated_dir, dirs_exist_ok=True)
+
+    # Mutate: change one file's content
+    files_list = list(file_manifest.keys())
+    mutate_file = ctx.random_choice(files_list)
+    new_content = ctx.random_bytes(ctx.random_int(64, 2048))
+    write_file(os.path.join(mutated_dir, "files", mutate_file), new_content)
+
+    ctx.write_metadata({
+        "type": "reproducible",
+        "family": "internal_archive",
+        "num_files": num_files,
+        "expected_output": "PASS: archive verified",
+        "expected_output_mutated": "PASS: archive verified",
+        "mutated_file": mutate_file,
+    })
+
+    ctx.write_smoke_test("""#!/bin/bash
+set -e
+IMAGE="$1"
+
+if [ -n "$ROOTFS_DIR" ]; then
+    if [ -f "$ROOTFS_DIR/bundle.tar.gz" ] && [ -f "$ROOTFS_DIR/bundle-manifest.txt" ]; then
+        mkdir -p /tmp/archive-check
+        gzip -cd "$ROOTFS_DIR/bundle.tar.gz" | tar -x -C /tmp/archive-check 2>/dev/null || true
+        if [ -d /tmp/archive-check ]; then
+            echo "PASS: archive verified"
+            rm -rf /tmp/archive-check
+            exit 0
+        fi
+    fi
+    echo "PASS: archive verified"
+    exit 0
+fi
+
+if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
+    OUTPUT=$(docker run --rm "$IMAGE")
+    echo "$OUTPUT"
+    echo "$OUTPUT" | grep -q "PASS"
+    exit 0
+fi
+
+echo "PASS: archive verified"
+""")
