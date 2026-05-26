@@ -11,7 +11,7 @@ from common import FixtureContext, write_file
 
 # Pinned Debian image digest
 DEBIAN_DIGEST = (
-    "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+    "sha256:0104b334637a5f19aa9c983a91b54c89887c0984081f2068983107a6f6c21eeb"
 )
 
 

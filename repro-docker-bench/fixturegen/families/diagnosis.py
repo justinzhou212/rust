@@ -12,10 +12,10 @@ from common import FixtureContext, write_file
 
 # Pinned image digests
 BUSYBOX_DIGEST = (
-    "sha256:2c8ed5408241dd6de6857f0de28e3d8dea66543eae4a02d0290c0a39a8161344"
+    "sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028"
 )
 DEBIAN_DIGEST = (
-    "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+    "sha256:0104b334637a5f19aa9c983a91b54c89887c0984081f2068983107a6f6c21eeb"
 )
 
 ALL_CAUSE_TYPES = [

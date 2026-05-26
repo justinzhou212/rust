@@ -12,10 +12,10 @@ from common import FixtureContext, write_file
 
 
 # Pinned image digests
-NODE_DIGEST = "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
-RUST_DIGEST = "sha256:b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
+NODE_DIGEST = "sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0"
+RUST_DIGEST = "sha256:70c2a016184099262fd7cee46f3d35fec3568c45c62f87e37f7f665f766b1f74"
 DEBIAN_DIGEST = (
-    "sha256:b8084b1a576c5504a031936e1132574f4ce1d6cc7130bbfb45124ace56b37b83"
+    "sha256:0104b334637a5f19aa9c983a91b54c89887c0984081f2068983107a6f6c21eeb"
 )
 
 

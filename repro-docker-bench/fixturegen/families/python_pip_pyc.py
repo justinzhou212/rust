@@ -13,7 +13,7 @@ from common import FixtureContext, write_file
 
 # Pinned Python image digest
 PYTHON_DIGEST = (
-    "sha256:3f0fe4b7eb2e9b5d4c0e75aeb784b9f3e6f9c3b3b2f1a4c8d7e6f5a4b3c2d1e0"
+    "sha256:a3ab0b966bc4e91546a033e22093cb840908979487a9fc0e6e38295747e49ac0"
 )
 
 
