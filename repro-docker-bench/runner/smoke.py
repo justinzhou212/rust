@@ -129,8 +129,11 @@ def _validate_rootfs_directly(oci_dir, smoke_script, expected_output):
         # Extract rootfs from OCI layers
         rootfs_dir = _extract_rootfs(oci_dir)
         if rootfs_dir is None:
-            # If we can't extract either, just check OCI validity
-            return {"passed": True, "output": "", "error": ""}
+            return {
+                "passed": False,
+                "output": "",
+                "error": "Cannot extract rootfs from OCI layout and no container runtime available",
+            }
 
         env = os.environ.copy()
         env["ROOTFS_DIR"] = rootfs_dir

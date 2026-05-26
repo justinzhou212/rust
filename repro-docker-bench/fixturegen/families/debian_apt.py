@@ -117,6 +117,11 @@ CMD ["bash", "/check.sh"]
             "expected_output": "PASS: debian apt verified",
             "expected_output_mutated": "PASS: debian apt verified",
             "packages": packages,
+            "required_rootfs_paths": [
+                "/check.sh",
+                "/usr/bin/curl",
+                "/usr/bin/file",
+            ],
         }
     )
 
@@ -125,10 +130,9 @@ set -e
 IMAGE="$1"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    if [ -f "$ROOTFS_DIR/check.sh" ]; then
-        bash "$ROOTFS_DIR/check.sh" 2>/dev/null || echo "PASS: debian apt verified"
-        exit 0
-    fi
+    test -f "$ROOTFS_DIR/check.sh" || { echo "FAIL: /check.sh missing"; exit 1; }
+    test -f "$ROOTFS_DIR/usr/bin/curl" || { echo "FAIL: curl not installed"; exit 1; }
+    test -f "$ROOTFS_DIR/usr/bin/file" || { echo "FAIL: file not installed"; exit 1; }
     echo "PASS: debian apt verified"
     exit 0
 fi
@@ -136,9 +140,10 @@ fi
 if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     OUTPUT=$(docker run --rm "$IMAGE")
     echo "$OUTPUT"
-    echo "$OUTPUT" | grep -q "PASS"
+    echo "$OUTPUT" | grep -q "PASS" || { echo "FAIL: container output missing PASS"; exit 1; }
     exit 0
 fi
 
-echo "PASS: debian apt verified"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)

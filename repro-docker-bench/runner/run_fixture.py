@@ -125,6 +125,34 @@ def _run_reproducible_fixture(fixture_dir, metadata, submission_bin, verbose):
             "reason": "C image identical to A (mutation not reflected)",
         }
 
+    # Validate: rootfs content verification
+    # Check that expected files exist in the OCI image layers
+    required_paths = metadata.get("required_rootfs_paths", [])
+    if required_paths:
+        from smoke import _extract_rootfs
+
+        for env_name in ["A", "B", "C"]:
+            rootfs = _extract_rootfs(results[env_name]["output_dir"])
+            if rootfs is None:
+                return {
+                    "status": "FAIL",
+                    "reason": f"Build {env_name}: cannot extract rootfs for content verification",
+                }
+            missing = []
+            for rp in required_paths:
+                full = os.path.join(rootfs, rp.lstrip("/"))
+                if not os.path.exists(full):
+                    missing.append(rp)
+            shutil.rmtree(rootfs, ignore_errors=True)
+            if missing:
+                return {
+                    "status": "FAIL",
+                    "reason": (
+                        f"Build {env_name}: required rootfs paths missing: "
+                        f"{', '.join(missing[:10])}"
+                    ),
+                }
+
     # Validate: runtime smoke tests
     if os.path.isfile(smoke_script):
         for env_name in ["A", "B", "C"]:

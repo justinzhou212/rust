@@ -186,6 +186,12 @@ CMD ["sh", "-c", "sha256sum -c /app/manifest.txt && /app/check.sh"]
             "num_ignored": num_ignored,
             "expected_output": "PASS: file tree verified",
             "expected_output_mutated": "PASS: file tree verified",
+            "required_rootfs_paths": [
+                "/app/check.sh",
+                "/app/manifest.txt",
+                "/app/required_files.txt",
+                "/app/data",
+            ],
         }
     )
 
@@ -193,34 +199,26 @@ CMD ["sh", "-c", "sha256sum -c /app/manifest.txt && /app/check.sh"]
     ctx.write_smoke_test("""#!/bin/bash
 set -e
 IMAGE="$1"
-OCI_DIR="${OCI_DIR:-}"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    # Rootfs validation mode
-    if [ -f "$ROOTFS_DIR/app/check.sh" ]; then
-        cd "$ROOTFS_DIR/app"
-        # Verify manifest exists
-        if [ -f manifest.txt ]; then
-            echo "PASS: file tree verified"
-            exit 0
-        fi
-    fi
-    echo "FAIL: rootfs missing expected files"
-    exit 1
+    # Rootfs validation: verify required files exist
+    test -f "$ROOTFS_DIR/app/check.sh" || { echo "FAIL: /app/check.sh missing"; exit 1; }
+    test -f "$ROOTFS_DIR/app/manifest.txt" || { echo "FAIL: /app/manifest.txt missing"; exit 1; }
+    test -f "$ROOTFS_DIR/app/required_files.txt" || { echo "FAIL: /app/required_files.txt missing"; exit 1; }
+    # Verify at least some data files exist
+    DATA_COUNT=$(find "$ROOTFS_DIR/app/data" -type f 2>/dev/null | wc -l)
+    test "$DATA_COUNT" -gt 0 || { echo "FAIL: no data files in rootfs"; exit 1; }
+    echo "PASS: file tree verified"
+    exit 0
 fi
 
 if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     OUTPUT=$(docker run --rm "$IMAGE")
     echo "$OUTPUT"
-    echo "$OUTPUT" | grep -q "PASS"
+    echo "$OUTPUT" | grep -q "PASS" || { echo "FAIL: container output missing PASS"; exit 1; }
     exit 0
 fi
 
-# Fallback: check OCI layout has layers
-if [ -n "$OCI_DIR" ] && [ -f "$OCI_DIR/index.json" ]; then
-    echo "PASS: file tree verified"
-    exit 0
-fi
-
-echo "PASS: file tree verified"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)

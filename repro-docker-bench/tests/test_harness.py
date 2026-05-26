@@ -17,8 +17,8 @@ BENCH_DIR = os.path.dirname(TEST_DIR)
 sys.path.insert(0, os.path.join(BENCH_DIR, "runner"))
 sys.path.insert(0, os.path.join(BENCH_DIR, "fixturegen"))
 
-from compare_oci import compare_oci_layouts
-from validate_diagnosis import validate_diagnosis
+from compare_oci import compare_oci_layouts  # noqa: E402
+from validate_diagnosis import validate_diagnosis  # noqa: E402
 
 PASSED = 0
 FAILED = 0
@@ -39,11 +39,13 @@ def _make_oci_layout(tmpdir, file_content=b"hello world"):
     os.makedirs(os.path.join(tmpdir, "blobs", "sha256"), exist_ok=True)
 
     # Config
-    config = json.dumps({
-        "architecture": "amd64",
-        "os": "linux",
-        "rootfs": {"type": "layers", "diff_ids": []},
-    }).encode()
+    config = json.dumps(
+        {
+            "architecture": "amd64",
+            "os": "linux",
+            "rootfs": {"type": "layers", "diff_ids": []},
+        }
+    ).encode()
     config_digest = hashlib.sha256(config).hexdigest()
     with open(os.path.join(tmpdir, "blobs", "sha256", config_digest), "wb") as f:
         f.write(config)
@@ -67,20 +69,24 @@ def _make_oci_layout(tmpdir, file_content=b"hello world"):
         f.write(layer_bytes)
 
     # Manifest
-    manifest = json.dumps({
-        "schemaVersion": 2,
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "config": {
-            "mediaType": "application/vnd.oci.image.config.v1+json",
-            "digest": f"sha256:{config_digest}",
-            "size": len(config),
-        },
-        "layers": [{
-            "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-            "digest": f"sha256:{layer_digest}",
-            "size": len(layer_bytes),
-        }],
-    }).encode()
+    manifest = json.dumps(
+        {
+            "schemaVersion": 2,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "config": {
+                "mediaType": "application/vnd.oci.image.config.v1+json",
+                "digest": f"sha256:{config_digest}",
+                "size": len(config),
+            },
+            "layers": [
+                {
+                    "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                    "digest": f"sha256:{layer_digest}",
+                    "size": len(layer_bytes),
+                }
+            ],
+        }
+    ).encode()
     manifest_digest = hashlib.sha256(manifest).hexdigest()
     with open(os.path.join(tmpdir, "blobs", "sha256", manifest_digest), "wb") as f:
         f.write(manifest)
@@ -88,11 +94,13 @@ def _make_oci_layout(tmpdir, file_content=b"hello world"):
     # index.json
     index = {
         "schemaVersion": 2,
-        "manifests": [{
-            "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": f"sha256:{manifest_digest}",
-            "size": len(manifest),
-        }],
+        "manifests": [
+            {
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                "digest": f"sha256:{manifest_digest}",
+                "size": len(manifest),
+            }
+        ],
     }
     with open(os.path.join(tmpdir, "index.json"), "w") as f:
         json.dump(index, f)
@@ -128,18 +136,24 @@ def test_compare_oci_invalid():
         # b is empty
         result = compare_oci_layouts(a, b)
         test("missing index.json detected", not result["equal"])
-        test("error mentions missing", "missing" in result["diff"].lower() or "invalid" in result["diff"].lower(), result["diff"])
+        test(
+            "error mentions missing",
+            "missing" in result["diff"].lower() or "invalid" in result["diff"].lower(),
+            result["diff"],
+        )
 
 
 def test_diagnosis_valid():
     """Valid diagnosis with correct causes should pass."""
-    stdout = json.dumps({
-        "status": "unreproducible",
-        "causes": [
-            {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
-            {"type": "TIMESTAMP_LEAK", "location": "scripts/ts.sh:2"},
-        ],
-    })
+    stdout = json.dumps(
+        {
+            "status": "unreproducible",
+            "causes": [
+                {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
+                {"type": "TIMESTAMP_LEAK", "location": "scripts/ts.sh:2"},
+            ],
+        }
+    )
     expected = [
         {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
         {"type": "TIMESTAMP_LEAK", "location": "scripts/ts.sh:2"},
@@ -150,31 +164,37 @@ def test_diagnosis_valid():
 
 def test_diagnosis_missing_cause():
     """Diagnosis missing an expected cause should fail."""
-    stdout = json.dumps({
-        "status": "unreproducible",
-        "causes": [
-            {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
-        ],
-    })
+    stdout = json.dumps(
+        {
+            "status": "unreproducible",
+            "causes": [
+                {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
+            ],
+        }
+    )
     expected = [
         {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
         {"type": "TIMESTAMP_LEAK", "location": "scripts/ts.sh:2"},
     ]
     result = validate_diagnosis(stdout, expected)
     test("missing cause detected", not result["valid"])
-    test("error mentions missing", "missing" in result["error"].lower(), result["error"])
+    test(
+        "error mentions missing", "missing" in result["error"].lower(), result["error"]
+    )
 
 
 def test_diagnosis_extra_cause():
     """Diagnosis with extra causes should fail (strict matching)."""
-    stdout = json.dumps({
-        "status": "unreproducible",
-        "causes": [
-            {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
-            {"type": "TIMESTAMP_LEAK", "location": "scripts/ts.sh:2"},
-            {"type": "RANDOMNESS_LEAK", "location": "scripts/rand.sh:3"},
-        ],
-    })
+    stdout = json.dumps(
+        {
+            "status": "unreproducible",
+            "causes": [
+                {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
+                {"type": "TIMESTAMP_LEAK", "location": "scripts/ts.sh:2"},
+                {"type": "RANDOMNESS_LEAK", "location": "scripts/rand.sh:3"},
+            ],
+        }
+    )
     expected = [
         {"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"},
         {"type": "TIMESTAMP_LEAK", "location": "scripts/ts.sh:2"},
@@ -192,10 +212,16 @@ def test_diagnosis_bad_json():
 
 def test_diagnosis_json_in_noise():
     """JSON embedded in noisy output should still parse."""
-    stdout = 'Some debug output\n' + json.dumps({
-        "status": "unreproducible",
-        "causes": [{"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"}],
-    }) + '\nMore output\n'
+    stdout = (
+        "Some debug output\n"
+        + json.dumps(
+            {
+                "status": "unreproducible",
+                "causes": [{"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"}],
+            }
+        )
+        + "\nMore output\n"
+    )
     expected = [{"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"}]
     result = validate_diagnosis(stdout, expected)
     test("JSON extracted from noisy output", result["valid"], result.get("error", ""))
@@ -203,12 +229,14 @@ def test_diagnosis_json_in_noise():
 
 def test_diagnosis_wrong_location_file():
     """Diagnosis with wrong file in location should fail."""
-    stdout = json.dumps({
-        "status": "unreproducible",
-        "causes": [
-            {"type": "UNPINNED_BASE_IMAGE", "location": "wrong_file.sh:1"},
-        ],
-    })
+    stdout = json.dumps(
+        {
+            "status": "unreproducible",
+            "causes": [
+                {"type": "UNPINNED_BASE_IMAGE", "location": "wrong_file.sh:1"},
+            ],
+        }
+    )
     expected = [{"type": "UNPINNED_BASE_IMAGE", "location": "Dockerfile:1"}]
     result = validate_diagnosis(stdout, expected)
     test("wrong location file detected", not result["valid"])
@@ -223,8 +251,14 @@ def test_fixture_generation():
         ctx2 = FixtureContext("test-seed", "file_tree", out2)
 
         # Same seed should produce same random values
-        test("deterministic random_string", ctx1.random_string(10) == ctx2.random_string(10))
-        test("deterministic random_int", ctx1.random_int(0, 1000) == ctx2.random_int(0, 1000))
+        test(
+            "deterministic random_string",
+            ctx1.random_string(10) == ctx2.random_string(10),
+        )
+        test(
+            "deterministic random_int",
+            ctx1.random_int(0, 1000) == ctx2.random_int(0, 1000),
+        )
         test("deterministic random_hex", ctx1.random_hex(16) == ctx2.random_hex(16))
 
     # Different seeds should differ
@@ -238,7 +272,11 @@ def test_build_env():
     """Verify build environment creates proper structure."""
     from build_env import create_build_environment, ENV_A, ENV_B
 
-    with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as work_a, tempfile.TemporaryDirectory() as work_b:
+    with (
+        tempfile.TemporaryDirectory() as src,
+        tempfile.TemporaryDirectory() as work_a,
+        tempfile.TemporaryDirectory() as work_b,
+    ):
         # Create a source file
         with open(os.path.join(src, "test.txt"), "w") as f:
             f.write("hello")
@@ -251,8 +289,12 @@ def test_build_env():
         test("env A creates context", os.path.isdir(path_a))
         test("env B creates context", os.path.isdir(path_b))
         test("A and B have different paths", path_a != path_b)
-        test("source file copied to A", os.path.isfile(os.path.join(path_a, "test.txt")))
-        test("source file copied to B", os.path.isfile(os.path.join(path_b, "test.txt")))
+        test(
+            "source file copied to A", os.path.isfile(os.path.join(path_a, "test.txt"))
+        )
+        test(
+            "source file copied to B", os.path.isfile(os.path.join(path_b, "test.txt"))
+        )
 
         # Verify content is identical
         with open(os.path.join(path_a, "test.txt")) as f:

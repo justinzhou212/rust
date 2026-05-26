@@ -174,6 +174,7 @@ ENTRYPOINT ["/app"]
             "expected_output": expected_hash,
             "expected_output_mutated": mutated_expected_hash,
             "app_name": app_name,
+            "required_rootfs_paths": ["/app"],
         }
     )
 
@@ -184,12 +185,10 @@ IMAGE="$1"
 TEST_INPUT="{test_input}"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    if [ -x "$ROOTFS_DIR/app" ]; then
-        OUTPUT=$("$ROOTFS_DIR/app" --check "$TEST_INPUT" 2>/dev/null || true)
-        echo "$OUTPUT"
-        exit 0
-    fi
-    echo "PASS: go app self-test"
+    test -f "$ROOTFS_DIR/app" || {{ echo "FAIL: /app binary missing from rootfs"; exit 1; }}
+    test -x "$ROOTFS_DIR/app" || {{ echo "FAIL: /app not executable"; exit 1; }}
+    OUTPUT=$("$ROOTFS_DIR/app" --check "$TEST_INPUT")
+    echo "$OUTPUT"
     exit 0
 fi
 
@@ -199,5 +198,6 @@ if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     exit 0
 fi
 
-echo "PASS: go app self-test"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)

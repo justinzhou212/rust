@@ -250,6 +250,10 @@ CMD ["node", "dist/server.js", "--self-test"]
             "expected_hash": expected_hash,
             "mutated_hash": mutated_expected,
             "app_name": app_name,
+            "required_rootfs_paths": [
+                "/app/dist/server.js",
+                "/app/dist/manifest.json",
+            ],
         }
     )
 
@@ -258,21 +262,20 @@ set -e
 IMAGE="$1"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    if [ -f "$ROOTFS_DIR/app/dist/server.js" ]; then
-        cd "$ROOTFS_DIR/app"
-        node dist/server.js --self-test 2>/dev/null || echo "PASS: node self-test"
-        exit 0
-    fi
-    echo "PASS: node self-test"
+    test -f "$ROOTFS_DIR/app/dist/server.js" || { echo "FAIL: /app/dist/server.js missing"; exit 1; }
+    test -f "$ROOTFS_DIR/app/dist/manifest.json" || { echo "FAIL: /app/dist/manifest.json missing"; exit 1; }
+    cd "$ROOTFS_DIR/app"
+    node dist/server.js --self-test
     exit 0
 fi
 
 if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     OUTPUT=$(docker run --rm "$IMAGE")
     echo "$OUTPUT"
-    echo "$OUTPUT" | grep -q "PASS"
+    echo "$OUTPUT" | grep -q "PASS" || { echo "FAIL: container output missing PASS"; exit 1; }
     exit 0
 fi
 
-echo "PASS: node self-test"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)

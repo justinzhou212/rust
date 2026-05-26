@@ -366,7 +366,25 @@ echo "mutated-output" > /app/mutation.txt
         """#!/bin/bash
 set -e
 IMAGE="$1"
-echo "PASS: safe cousin verified"
+
+if [ -n "$ROOTFS_DIR" ]; then
+    # Verify the safe build produced expected output files
+    FOUND=$(find "$ROOTFS_DIR/app" -name "*.txt" -type f 2>/dev/null | wc -l)
+    test "$FOUND" -gt 0 || { echo "FAIL: no output files in /app"; exit 1; }
+    echo "PASS: safe cousin verified"
+    exit 0
+fi
+
+if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
+    OUTPUT=$(docker run --rm "$IMAGE")
+    echo "$OUTPUT"
+    echo "$OUTPUT" | grep -q "done" || { echo "FAIL: container output missing done"; exit 1; }
+    echo "PASS: safe cousin verified"
+    exit 0
+fi
+
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """,
         executable=True,
     )

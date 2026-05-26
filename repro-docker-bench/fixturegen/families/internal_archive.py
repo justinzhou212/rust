@@ -69,6 +69,10 @@ CMD ["sh", "-c", "gzip -cd /bundle.tar.gz | tar -x -C /tmp/out && find /tmp/out 
             "expected_output": "PASS: archive verified",
             "expected_output_mutated": "PASS: archive verified",
             "mutated_file": mutate_file,
+            "required_rootfs_paths": [
+                "/bundle.tar.gz",
+                "/bundle-manifest.txt",
+            ],
         }
     )
 
@@ -77,15 +81,13 @@ set -e
 IMAGE="$1"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    if [ -f "$ROOTFS_DIR/bundle.tar.gz" ] && [ -f "$ROOTFS_DIR/bundle-manifest.txt" ]; then
-        mkdir -p /tmp/archive-check
-        gzip -cd "$ROOTFS_DIR/bundle.tar.gz" | tar -x -C /tmp/archive-check 2>/dev/null || true
-        if [ -d /tmp/archive-check ]; then
-            echo "PASS: archive verified"
-            rm -rf /tmp/archive-check
-            exit 0
-        fi
-    fi
+    test -f "$ROOTFS_DIR/bundle.tar.gz" || { echo "FAIL: /bundle.tar.gz missing"; exit 1; }
+    test -f "$ROOTFS_DIR/bundle-manifest.txt" || { echo "FAIL: /bundle-manifest.txt missing"; exit 1; }
+    TMPDIR=$(mktemp -d)
+    gzip -cd "$ROOTFS_DIR/bundle.tar.gz" | tar -x -C "$TMPDIR"
+    EXTRACTED=$(find "$TMPDIR" -type f | wc -l)
+    rm -rf "$TMPDIR"
+    test "$EXTRACTED" -gt 0 || { echo "FAIL: archive is empty"; exit 1; }
     echo "PASS: archive verified"
     exit 0
 fi
@@ -93,9 +95,10 @@ fi
 if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     OUTPUT=$(docker run --rm "$IMAGE")
     echo "$OUTPUT"
-    echo "$OUTPUT" | grep -q "PASS"
+    echo "$OUTPUT" | grep -q "PASS" || { echo "FAIL: container output missing PASS"; exit 1; }
     exit 0
 fi
 
-echo "PASS: archive verified"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)

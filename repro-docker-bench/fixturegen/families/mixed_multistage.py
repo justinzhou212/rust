@@ -245,6 +245,10 @@ CMD ["server", "--self-test"]
             "app_name": app_name,
             "static_token": static_token,
             "mutated_token": mutated_token,
+            "required_rootfs_paths": [
+                "/usr/local/bin/server",
+                "/srv/static/manifest.json",
+            ],
         }
     )
 
@@ -253,20 +257,20 @@ set -e
 IMAGE="$1"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    if [ -x "$ROOTFS_DIR/usr/local/bin/server" ]; then
-        "$ROOTFS_DIR/usr/local/bin/server" --self-test 2>/dev/null || echo "PASS: mixed app self-test"
-        exit 0
-    fi
-    echo "PASS: mixed app self-test"
+    test -f "$ROOTFS_DIR/usr/local/bin/server" || { echo "FAIL: /usr/local/bin/server missing"; exit 1; }
+    test -f "$ROOTFS_DIR/srv/static/manifest.json" || { echo "FAIL: /srv/static/manifest.json missing"; exit 1; }
+    test -x "$ROOTFS_DIR/usr/local/bin/server" || { echo "FAIL: server not executable"; exit 1; }
+    "$ROOTFS_DIR/usr/local/bin/server" --self-test
     exit 0
 fi
 
 if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     OUTPUT=$(docker run --rm "$IMAGE")
     echo "$OUTPUT"
-    echo "$OUTPUT" | grep -q "PASS"
+    echo "$OUTPUT" | grep -q "PASS" || { echo "FAIL: container output missing PASS"; exit 1; }
     exit 0
 fi
 
-echo "PASS: mixed app self-test"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)

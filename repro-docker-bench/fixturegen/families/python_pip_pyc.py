@@ -207,6 +207,12 @@ CMD ["python", "-m", "app", "--self-test"]
             "expected_output_mutated": "PASS: python self-test",
             "expected_hash": expected_hash,
             "mutated_hash": mutated_hash,
+            "required_rootfs_paths": [
+                "/app/app/__init__.py",
+                "/app/app/__main__.py",
+                "/app/data/input.json",
+                "/app/generated",
+            ],
         }
     )
 
@@ -215,21 +221,23 @@ set -e
 IMAGE="$1"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    if [ -d "$ROOTFS_DIR/app" ]; then
-        cd "$ROOTFS_DIR"
-        PYTHONPATH="$ROOTFS_DIR/app" python3 -m app --self-test 2>/dev/null || echo "PASS: python self-test"
-        exit 0
-    fi
-    echo "PASS: python self-test"
+    test -d "$ROOTFS_DIR/app/app" || { echo "FAIL: /app/app/ module missing"; exit 1; }
+    test -f "$ROOTFS_DIR/app/data/input.json" || { echo "FAIL: /app/data/input.json missing"; exit 1; }
+    test -d "$ROOTFS_DIR/app/generated" || { echo "FAIL: /app/generated/ missing"; exit 1; }
+    ASSET_COUNT=$(find "$ROOTFS_DIR/app/generated" -type f 2>/dev/null | wc -l)
+    test "$ASSET_COUNT" -gt 0 || { echo "FAIL: no generated assets"; exit 1; }
+    cd "$ROOTFS_DIR/app"
+    PYTHONPATH="$ROOTFS_DIR/app" python3 -m app --self-test
     exit 0
 fi
 
 if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     OUTPUT=$(docker run --rm "$IMAGE")
     echo "$OUTPUT"
-    echo "$OUTPUT" | grep -q "PASS"
+    echo "$OUTPUT" | grep -q "PASS" || { echo "FAIL: container output missing PASS"; exit 1; }
     exit 0
 fi
 
-echo "PASS: python self-test"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)

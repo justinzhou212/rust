@@ -84,20 +84,18 @@ CMD ["sha256sum", "/payload"]
             "mutated_filename": mutated_filename,
             "expected_output": f"{payload_sha256}  /payload",
             "expected_output_mutated": f"{mutated_sha256}  /payload",
+            "required_rootfs_paths": ["/payload"],
         }
     )
 
-    ctx.write_smoke_test(f"""#!/bin/bash
+    ctx.write_smoke_test("""#!/bin/bash
 set -e
 IMAGE="$1"
 
 if [ -n "$ROOTFS_DIR" ]; then
-    if [ -f "$ROOTFS_DIR/payload" ]; then
-        HASH=$(sha256sum "$ROOTFS_DIR/payload" | cut -d' ' -f1)
-        echo "$HASH  /payload"
-        exit 0
-    fi
-    echo "{payload_sha256}  /payload"
+    test -f "$ROOTFS_DIR/payload" || { echo "FAIL: /payload missing"; exit 1; }
+    HASH=$(sha256sum "$ROOTFS_DIR/payload" | cut -d' ' -f1)
+    echo "$HASH  /payload"
     exit 0
 fi
 
@@ -107,5 +105,6 @@ if [ -n "$IMAGE" ] && command -v docker >/dev/null 2>&1; then
     exit 0
 fi
 
-echo "{payload_sha256}  /payload"
+echo "FAIL: no container runtime or rootfs available"
+exit 1
 """)
