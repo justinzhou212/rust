@@ -1,0 +1,43 @@
+{
+  "description": "Pinned base image digests used by fixtures. All fixtures reference images by digest to ensure reproducibility of the benchmark itself.",
+  "images": {
+    "busybox": {
+      "tag": "busybox:1.36",
+      "digest": "sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028",
+      "platform": "linux/amd64",
+      "note": "Used by file_tree, internal_archive, pinned_network fixtures"
+    },
+    "golang": {
+      "tag": "golang:1.21",
+      "digest": "sha256:4746d26432a9117a5f58e95cb9f954ddf0de128e9d5816886514199316e4a2fb",
+      "platform": "linux/amd64",
+      "note": "Used by go_multistage fixture"
+    },
+    "python": {
+      "tag": "python:3.11-slim",
+      "digest": "sha256:a3ab0b966bc4e91546a033e22093cb840908979487a9fc0e6e38295747e49ac0",
+      "platform": "linux/amd64",
+      "note": "Used by python_pip_pyc fixture"
+    },
+    "node": {
+      "tag": "node:20-slim",
+      "digest": "sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0",
+      "platform": "linux/amd64",
+      "note": "Used by node_npm, mixed_multistage fixtures"
+    },
+    "rust": {
+      "tag": "rust:1.75-slim",
+      "digest": "sha256:70c2a016184099262fd7cee46f3d35fec3568c45c62f87e37f7f665f766b1f74",
+      "platform": "linux/amd64",
+      "note": "Used by mixed_multistage fixture"
+    },
+    "debian": {
+      "tag": "debian:bookworm-slim",
+      "digest": "sha256:0104b334637a5f19aa9c983a91b54c89887c0984081f2068983107a6f6c21eeb",
+      "platform": "linux/amd64",
+      "note": "Used by debian_apt, mixed_multistage, diagnosis fixtures"
+    }
+  },
+  "last_updated": "2024-11-14T00:00:00Z",
+  "update_policy": "Manual. Update digests only when fixtures require newer base image features."
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reproducibility Diagnosis",
+  "description": "Machine-readable diagnosis output when a Dockerfile cannot be safely reproduced",
+  "type": "object",
+  "required": ["status", "causes"],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["unreproducible"]
+    },
+    "causes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "location"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "UNPINNED_BASE_IMAGE",
+              "UNPINNED_APT_REPOSITORY",
+              "UNPINNED_PIP_DEPENDENCY",
+              "UNPINNED_NPM_DEPENDENCY",
+              "UNPINNED_NETWORK_DOWNLOAD",
+              "TIMESTAMP_LEAK",
+              "RANDOMNESS_LEAK",
+              "HOSTNAME_LEAK",
+              "BUILD_PATH_LEAK"
+            ]
+          },
+          "location": {
+            "type": "string",
+            "description": "File and line reference, e.g. 'Dockerfile:2' or 'scripts/install.sh:5'",
+            "pattern": "^.+:\\d+$"
+          },
+          "evidence": {
+            "type": "string",
+            "description": "The problematic code or directive"
+          },
+          "suggested_fix": {
+            "type": "string",
+            "description": "How to fix the issue"
+          }
+        }
+      }
+    }
+  }
+}
